@@ -70,7 +70,16 @@ export type ScoreResult = {
 
 export class ApiError extends Error {}
 
+/** True in the hosted demo build, where the API runs inside the browser instead of on a server. */
+export const DEMO = import.meta.env.VITE_DEMO === "1";
+
 export async function api<T>(path: string, init?: RequestInit & { json?: unknown }): Promise<T> {
+  if (DEMO) {
+    const { demo } = await import("./demo/server");
+    const r = await demo.handle(init?.method ?? "GET", path, init?.json);
+    if (r.status >= 400) throw new ApiError((r.data as { error?: string }).error ?? `Request failed (${r.status})`);
+    return r.data as T;
+  }
   const res = await fetch(path, {
     ...init,
     headers: { ...(init?.json !== undefined ? { "content-type": "application/json" } : {}), ...init?.headers },

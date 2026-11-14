@@ -9,3 +9,4 @@ data/
 !.env.example
 models/report.json
 .DS_Store
+apps/web/public/model.json

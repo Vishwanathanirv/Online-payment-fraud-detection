@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, type Tx } from "./api";
+import { api, DEMO, type Tx } from "./api";
 
 /** Subscribes to the server-sent event stream of scored transactions. */
 export function useLiveFeed(max = 60) {
@@ -10,6 +10,22 @@ export function useLiveFeed(max = 60) {
   useEffect(() => {
     let cancelled = false;
     api<{ transactions: Tx[] }>(`/api/transactions?limit=${max}`).then((r) => !cancelled && setItems(r.transactions)).catch(() => {});
+    if (DEMO) {
+      let unsub = () => {};
+      import("./demo/server").then(({ demo }) => {
+        if (cancelled) return;
+        void demo.handle("GET", "/api/health", undefined).then(() => !cancelled && setConnected(true));
+        unsub = demo.subscribe((tx) => {
+          fresh.current.add(tx.id);
+          setTimeout(() => fresh.current.delete(tx.id), 1500);
+          setItems((prev) => [tx, ...prev.filter((p) => p.id !== tx.id)].slice(0, max));
+        }) as unknown as () => void;
+      });
+      return () => {
+        cancelled = true;
+        unsub();
+      };
+    }
     const es = new EventSource("/api/stream");
     es.addEventListener("hello", () => setConnected(true));
     es.addEventListener("tx", (e) => {

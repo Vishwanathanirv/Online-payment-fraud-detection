@@ -160,7 +160,9 @@ The tests check behaviour, not just shapes. For example:
 
 ## Deploy
 
-The repo includes a `Dockerfile` and a `render.yaml`. On [Render](https://render.com): click **New → Blueprint** and pick this repo. Any host that runs a Docker container works the same way. Mount a volume at `/data` to keep the database between restarts.
+**Static demo on Vercel.** `npm run build:demo` builds the dashboard with the API compiled into the browser: the same simulator, feature store, models and rules run client-side, so each visitor gets a private sandbox and no server is needed. Import the repo on [Vercel](https://vercel.com/new) and it picks up `vercel.json`; no settings or environment variables are required.
+
+**Full server.** The repo includes a `Dockerfile` and a `render.yaml`. On [Render](https://render.com): click **New → Blueprint** and pick this repo. Any host that runs a Docker container works the same way. Mount a volume at `/data` to keep the database between restarts.
 
 ## Roadmap
 
