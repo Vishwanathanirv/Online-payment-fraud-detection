@@ -18,17 +18,21 @@ test("the live tape prints payments and explains one", async ({ page }) => {
   await expect(page.getByText("Model explanation")).toBeVisible();
 });
 
-test("the example payments get the decisions a fraud desk would expect", async ({ page }) => {
-  await page.goto("/try");
-  await page.getByRole("button", { name: "Weekly groceries" }).click();
-  const result = page.locator("section").nth(1);
-  await expect(result.getByLabel("approve")).toBeVisible({ timeout: 30_000 });
-  await page.getByRole("button", { name: "Late-night crypto" }).click();
-  await expect(result.getByLabel("block")).toBeVisible();
-  await page.getByRole("button", { name: "Skimmed card abroad" }).click();
-  await expect(result.getByText(/Implied travel at \d+ km\/h/)).toBeVisible();
-  await expect(result.getByLabel(/review|block/)).toBeVisible();
-});
+// The examples must behave the same whatever time it is when someone opens the page.
+for (const at of ["2026-11-15T03:00:00", "2026-11-15T14:30:00", "2026-11-15T21:35:00"]) {
+  test(`the example payments get the decisions a fraud desk would expect (at ${at.slice(11, 16)})`, async ({ page }) => {
+    await page.clock.install({ time: new Date(at) });
+    await page.goto("/try");
+    const result = page.locator("section").nth(1);
+    await page.getByRole("button", { name: "Weekly groceries" }).click();
+    await expect(result.getByLabel("approve")).toBeVisible({ timeout: 30_000 });
+    await page.getByRole("button", { name: "Late-night crypto" }).click();
+    await expect(result.getByLabel("block")).toBeVisible();
+    await page.getByRole("button", { name: "Skimmed card abroad" }).click();
+    await expect(result.getByText(/Implied travel at [\d,]+ km\/h/)).toBeVisible();
+    await expect(result.getByLabel(/review|block/)).toBeVisible();
+  });
+}
 
 test("drift explains expected shifts instead of raising false alarms", async ({ page }) => {
   await page.goto("/drift");

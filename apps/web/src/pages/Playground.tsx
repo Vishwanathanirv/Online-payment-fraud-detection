@@ -15,7 +15,8 @@ const PLACES: Record<string, { lat: number; lon: number; country: string }> = {
 const PRESETS = [
   { name: "Weekly groceries", v: { category: "grocery", amount: 1200, channel: "pos", place: "Chennai, IN", hour: 18, newDevice: false } },
   { name: "Late-night crypto", v: { category: "crypto", amount: 85000, channel: "online", place: "Chennai, IN", hour: 2, newDevice: true } },
-  { name: "Skimmed card abroad", v: { category: "electronics", amount: 42000, channel: "pos", place: "Lagos", hour: 14, newDevice: false } },
+  // Hour -1 means "right now": a cloned card used abroad while its owner just shopped at home.
+  { name: "Skimmed card abroad", v: { category: "electronics", amount: 42000, channel: "pos", place: "Lagos", hour: -1, newDevice: false } },
   { name: "Gift-card cash-out", v: { category: "gift_cards", amount: 25000, channel: "online", place: "Chennai, IN", hour: 23, newDevice: true } },
 ];
 
@@ -48,8 +49,14 @@ export function Playground() {
     setError(null);
     setBusy(true);
     const p = PLACES[f.place];
-    const d = new Date();
-    d.setHours(f.hour, 0, 0, 0);
+    // The next time it is that hour (or now), so the payment always comes after the demo
+    // customer's last purchase and time-based signals mean the same thing whatever the clock says.
+    const now = new Date();
+    const d = new Date(now);
+    if (f.hour >= 0 && f.hour !== now.getHours()) {
+      d.setHours(f.hour, 0, 0, 0);
+      if (d.getTime() <= now.getTime()) d.setDate(d.getDate() + 1);
+    }
     try {
       const r = await api<{ result: ScoreResult }>("/api/score", {
         method: "POST",
@@ -135,7 +142,14 @@ export function Playground() {
             </label>
             <label>
               <span className="label">Hour of day</span>
-              <input className="field mt-1.5" type="number" min={0} max={23} value={form.hour} onChange={(e) => set("hour", Number(e.target.value))} />
+              <select className="field mt-1.5" value={form.hour} onChange={(e) => set("hour", Number(e.target.value))}>
+                <option value={-1}>Right now</option>
+                {Array.from({ length: 24 }, (_, h) => (
+                  <option key={h} value={h}>
+                    {String(h).padStart(2, "0")}:00
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="flex items-end gap-2 pb-2 text-sm">
               <input type="checkbox" checked={form.newDevice} onChange={(e) => set("newDevice", e.target.checked)} className="accent-[var(--accent)]" />
