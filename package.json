@@ -1,0 +1,36 @@
+{
+  "name": "fraudlens",
+  "private": true,
+  "version": "2.0.0",
+  "description": "Real-time payment fraud detection: TypeScript ML (gradient-boosted trees, logistic regression, isolation forest), a streaming scoring API and an analyst dashboard.",
+  "author": "Vishwanathan R <mail@vishwanathan.dev> (https://vishwanathan.dev)",
+  "license": "MIT",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "train": "tsx scripts/train.ts",
+    "dev": "concurrently -n api,web -c blue,green \"npm:dev -w apps/api\" \"npm:dev -w apps/web\"",
+    "build": "npm run build -w apps/web && npm run build -w apps/api",
+    "start": "node --disable-warning=ExperimentalWarning apps/api/dist/server.js",
+    "test": "vitest run",
+    "typecheck": "tsc -p packages/core && tsc -p apps/api && tsc -p apps/web",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^22.20.5",
+    "concurrently": "^9.2.5",
+    "esbuild": "^0.25.12",
+    "eslint": "^9.39.5",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.72.2",
+    "vitest": "^3.2.7"
+  }
+}
