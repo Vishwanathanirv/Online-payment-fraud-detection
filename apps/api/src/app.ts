@@ -50,7 +50,7 @@ export async function buildApp(opts: AppOptions = {}): Promise<{ app: FastifyIns
   const engine = new Engine(bundle, store, { warmDays: opts.warmDays, customers: opts.customers, state: { running: opts.simulator ?? true } });
   const adminToken = opts.adminToken ?? process.env.ADMIN_TOKEN;
 
-  const app = Fastify({ logger: opts.logger ?? false, disableRequestLogging: true, bodyLimit: 2 * 1024 * 1024, trustProxy: true });
+  const app = Fastify({ logger: opts.logger ?? false, bodyLimit: 2 * 1024 * 1024, trustProxy: true });
   await app.register(helmet, {
     contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], styleSrc: ["'self'", "'unsafe-inline'"], imgSrc: ["'self'", "data:"], connectSrc: ["'self'"] } },
   });
