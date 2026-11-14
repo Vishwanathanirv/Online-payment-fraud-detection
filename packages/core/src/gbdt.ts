@@ -34,8 +34,11 @@ export const DEFAULT_GBDT: GbdtParams = {
   seed: 7,
 };
 
-/** Flat node arrays: compact, fast to traverse and trivial to serialise to JSON. */
-export type Tree = { feature: number[]; threshold: number[]; left: number[]; right: number[]; value: number[] };
+/**
+ * Flat node arrays: compact, fast to traverse and trivial to serialise to JSON.
+ * `cover` is the number of training rows that reached each node; TreeSHAP needs it.
+ */
+export type Tree = { feature: number[]; threshold: number[]; left: number[]; right: number[]; value: number[]; cover?: number[] };
 
 export type GbdtModel = { kind: "gbdt"; base: number; trees: Tree[]; featureCount: number; gain: number[] };
 
@@ -75,10 +78,10 @@ export function margin(m: GbdtModel, x: ArrayLike<number>): number {
 export const predictGbdt = (m: GbdtModel, x: ArrayLike<number>) => sigmoid(margin(m, x));
 
 /**
- * Per-feature contributions to the margin (Saabas path attribution): each split credits its
- * feature with the change in node value along the path the sample takes.
+ * Per-feature contributions to the margin (Saabas path attribution). Fast but only an
+ * approximation; used as a fallback for models saved without node cover.
  */
-export function explainGbdt(m: GbdtModel, x: ArrayLike<number>): number[] {
+export function explainSaabas(m: GbdtModel, x: ArrayLike<number>): number[] {
   const c = new Array(m.featureCount).fill(0);
   for (const t of m.trees) {
     let i = 0;
@@ -91,9 +94,128 @@ export function explainGbdt(m: GbdtModel, x: ArrayLike<number>): number[] {
   return c;
 }
 
+// ---------- exact TreeSHAP ----------
+
+type PathEl = { d: number; z: number; o: number; w: number };
+
+function extendPath(m: PathEl[], pz: number, po: number, pi: number): PathEl[] {
+  const l = m.length;
+  const out = m.map((e) => ({ ...e }));
+  out.push({ d: pi, z: pz, o: po, w: l === 0 ? 1 : 0 });
+  for (let i = l - 1; i >= 0; i--) {
+    out[i + 1].w += (po * out[i].w * (i + 1)) / (l + 1);
+    out[i].w = (pz * out[i].w * (l - i)) / (l + 1);
+  }
+  return out;
+}
+
+function unwindPath(m: PathEl[], i: number): PathEl[] {
+  const l = m.length - 1;
+  const out = m.map((e) => ({ ...e }));
+  let n = out[l].w;
+  const { z, o } = out[i];
+  for (let j = l - 1; j >= 0; j--) {
+    if (o !== 0) {
+      const t = out[j].w;
+      out[j].w = (n * (l + 1)) / ((j + 1) * o);
+      n = t - (out[j].w * z * (l - j)) / (l + 1);
+    } else {
+      out[j].w = (out[j].w * (l + 1)) / (z * (l - j));
+    }
+  }
+  for (let j = i; j < l; j++) {
+    out[j].d = out[j + 1].d;
+    out[j].z = out[j + 1].z;
+    out[j].o = out[j + 1].o;
+  }
+  out.pop();
+  return out;
+}
+
+function unwoundSum(m: PathEl[], i: number): number {
+  const l = m.length - 1;
+  const { z, o } = m[i];
+  let total = 0;
+  let n = m[l].w;
+  for (let j = l - 1; j >= 0; j--) {
+    if (o !== 0) {
+      const t = (n * (l + 1)) / ((j + 1) * o);
+      total += t;
+      n = m[j].w - (t * z * (l - j)) / (l + 1);
+    } else {
+      total += (m[j].w * (l + 1)) / (z * (l - j));
+    }
+  }
+  return total;
+}
+
+/** Adds one tree's exact SHAP values for x into phi (Lundberg et al., 2018, Algorithm 2). */
+function treeShap(t: Tree, x: ArrayLike<number>, phi: number[]) {
+  const cover = t.cover!;
+  const recurse = (j: number, m: PathEl[], pz: number, po: number, pi: number) => {
+    m = extendPath(m, pz, po, pi);
+    const f = t.feature[j];
+    if (f < 0) {
+      for (let i = 1; i < m.length; i++) phi[m[i].d] += unwoundSum(m, i) * (m[i].o - m[i].z) * t.value[j];
+      return;
+    }
+    const goLeft = x[f] <= t.threshold[j];
+    const hot = goLeft ? t.left[j] : t.right[j];
+    const cold = goLeft ? t.right[j] : t.left[j];
+    let iz = 1;
+    let io = 1;
+    const k = m.findIndex((e, idx) => idx > 0 && e.d === f);
+    if (k > 0) {
+      iz = m[k].z;
+      io = m[k].o;
+      m = unwindPath(m, k);
+    }
+    recurse(hot, m, (iz * cover[hot]) / cover[j], io, f);
+    recurse(cold, m, (iz * cover[cold]) / cover[j], 0, f);
+  };
+  recurse(0, [], 1, 1, -1);
+}
+
+/** Cover-weighted mean leaf value of a tree: its prediction when no feature is known. */
+function treeExpectation(t: Tree, j = 0): number {
+  if (t.feature[j] < 0) return t.value[j];
+  const c = t.cover!;
+  return (c[t.left[j]] * treeExpectation(t, t.left[j]) + c[t.right[j]] * treeExpectation(t, t.right[j])) / c[j];
+}
+
+const expectations = new WeakMap<GbdtModel, number>();
+
+/** The model's expected margin: SHAP values for any input sum to margin(x) minus this. */
+export function expectedMargin(m: GbdtModel): number {
+  let e = expectations.get(m);
+  if (e === undefined) {
+    e = m.base + m.trees.reduce((a, t) => a + treeExpectation(t), 0);
+    expectations.set(m, e);
+  }
+  return e;
+}
+
+export const hasCover = (m: GbdtModel) => m.trees.every((t) => Array.isArray(t.cover));
+
+/**
+ * Exact Shapley values of the margin (log-odds), one per feature. They satisfy local
+ * accuracy: expectedMargin(m) + sum(values) === margin(m, x). Falls back to Saabas
+ * attribution for models trained before node cover was recorded.
+ */
+export function explainGbdt(m: GbdtModel, x: ArrayLike<number>): number[] {
+  if (!hasCover(m)) return explainSaabas(m, x);
+  const phi = new Array(m.featureCount).fill(0);
+  for (const t of m.trees) treeShap(t, x, phi);
+  return phi;
+}
+
 type FitResult = { model: GbdtModel; history: { tree: number; trainLoss: number; validLoss?: number }[] };
 
-export function trainGbdt(X: number[][], y: number[], params: Partial<GbdtParams> = {}, valid?: { X: number[][]; y: number[] }): FitResult {
+/**
+ * Trains a model. With `init`, boosting continues from an existing model (warm start): new
+ * trees fit what the old ones get wrong on the new data, and the old trees are kept as they are.
+ */
+export function trainGbdt(X: number[][], y: number[], params: Partial<GbdtParams> = {}, valid?: { X: number[][]; y: number[] }, init?: GbdtModel): FitResult {
   const p = { ...DEFAULT_GBDT, ...params };
   const rng = new Rng(p.seed);
   const n = X.length;
@@ -114,13 +236,17 @@ export function trainGbdt(X: number[][], y: number[], params: Partial<GbdtParams
 
   const w = y.map((v) => (v ? p.posWeight : 1));
   const posRate = y.reduce((a, b, i) => a + b * w[i], 0) / w.reduce((a, b) => a + b, 0);
-  const base = Math.log(posRate / (1 - posRate));
+  const base = init ? init.base : Math.log(posRate / (1 - posRate));
   const z = new Float64Array(n).fill(base);
   const zv = valid ? new Float64Array(valid.X.length).fill(base) : undefined;
+  if (init) {
+    for (let i = 0; i < n; i++) z[i] = margin(init, X[i]);
+    if (valid && zv) for (let i = 0; i < valid.X.length; i++) zv[i] = margin(init, valid.X[i]);
+  }
   const g = new Float64Array(n);
   const h = new Float64Array(n);
   const trees: Tree[] = [];
-  const gain = new Array(F).fill(0);
+  const gain = init ? [...init.gain] : new Array(F).fill(0);
   const history: FitResult["history"] = [];
   let best = Infinity;
   let bestAt = 0;
@@ -137,6 +263,9 @@ export function trainGbdt(X: number[][], y: number[], params: Partial<GbdtParams
     return s / tw;
   };
 
+  // With a warm start, "no new trees" is a valid outcome: the old model is the bar to beat.
+  if (init && valid && zv) best = logloss(zv, valid.y);
+
   for (let t = 0; t < p.trees; t++) {
     for (let i = 0; i < n; i++) {
       const q = sigmoid(z[i]);
@@ -146,7 +275,7 @@ export function trainGbdt(X: number[][], y: number[], params: Partial<GbdtParams
     const rows: number[] = [];
     for (let i = 0; i < n; i++) if (y[i] === 1 || rng.next() < p.subsample) rows.push(i); // keep every rare positive
     const feats = Array.from({ length: F }, (_, f) => f).filter(() => rng.next() < p.colsample);
-    const tree: Tree = { feature: [], threshold: [], left: [], right: [], value: [] };
+    const tree: Tree = { feature: [], threshold: [], left: [], right: [], value: [], cover: [] };
 
     const build = (idx: number[], depth: number): number => {
       let G = 0;
@@ -161,6 +290,7 @@ export function trainGbdt(X: number[][], y: number[], params: Partial<GbdtParams
       tree.left.push(-1);
       tree.right.push(-1);
       tree.value.push((-G / (H + p.lambda)) * p.learningRate);
+      tree.cover!.push(idx.length);
       if (depth >= p.depth || H < 2 * p.minChildHess) return node;
 
       const parentScore = (G * G) / (H + p.lambda);
@@ -217,6 +347,7 @@ export function trainGbdt(X: number[][], y: number[], params: Partial<GbdtParams
     }
     history.push(rec);
   }
-  const keep = valid ? Math.max(1, bestAt) : trees.length;
-  return { model: { kind: "gbdt", base, trees: trees.slice(0, keep), featureCount: F, gain }, history };
+  const keep = valid ? (init ? bestAt : Math.max(1, bestAt)) : trees.length;
+  const kept = trees.slice(0, keep);
+  return { model: { kind: "gbdt", base, trees: init ? [...init.trees, ...kept] : kept, featureCount: F, gain }, history };
 }

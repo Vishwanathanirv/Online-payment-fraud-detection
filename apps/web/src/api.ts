@@ -36,6 +36,7 @@ export type Metrics = {
 
 export type ModelInfo = {
   version: string;
+  explainer?: string;
   trainedAt: string;
   thresholds: { review: number; block: number };
   trees: number;

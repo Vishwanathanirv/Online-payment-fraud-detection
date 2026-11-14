@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
 import {
   FEATURES,
+  Operations,
   PaymentSimulator,
   Scorer,
   driftLevel,
@@ -20,6 +21,7 @@ export type SimulatorState = { running: boolean; tps: number; fraudBoost: number
  */
 export class Engine extends EventEmitter {
   readonly scorer: Scorer;
+  readonly ops: Operations;
   readonly sim: PaymentSimulator;
   readonly state: SimulatorState;
   private timer: NodeJS.Timeout | null = null;
@@ -31,6 +33,7 @@ export class Engine extends EventEmitter {
     super();
     this.setMaxListeners(200);
     this.scorer = new Scorer(bundle);
+    this.ops = new Operations(this.scorer);
     this.sim = new PaymentSimulator({ seed: opts.seed ?? 2026, customers: opts.customers ?? 1500 });
     this.state = { running: true, tps: 3, fraudBoost: 6, ...opts.state };
     // Warm card histories with three weeks of past behaviour so live features are meaningful.
@@ -76,6 +79,7 @@ export class Engine extends EventEmitter {
   ingest(t: LabeledTransaction | (Transaction & { isFraud?: boolean; scenario?: string })): StoredTx {
     const result = this.scorer.score(t);
     const stored = this.store.insert(t, result);
+    this.ops.observe(t, result);
     this.window.push(toVector(result.features));
     if (this.window.length > 3000) this.window.shift();
     if (++this.scored % 2000 === 0) this.store.prune();

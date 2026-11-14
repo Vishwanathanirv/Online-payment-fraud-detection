@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { explainGbdt, margin, predictGbdt, trainGbdt } from "../src/gbdt";
+import { explainGbdt, margin, predictGbdt, trainGbdt, expectedMargin } from "../src/gbdt";
 import { predictLogReg, trainLogReg } from "../src/linear";
 import { anomalyScore, trainIForest } from "../src/iforest";
 import { rocAuc } from "../src/metrics";
@@ -37,8 +37,7 @@ describe("gradient-boosted trees", () => {
     const x = [0.9, 0.9, 0.5, 0.5];
     const c = explainGbdt(model, x);
     expect(Math.abs(c[0]) + Math.abs(c[1])).toBeGreaterThan(Math.abs(c[2]) + Math.abs(c[3]));
-    const rootSum = model.trees.reduce((a, t) => a + t.value[0], model.base);
-    expect(rootSum + c.reduce((a, b) => a + b, 0)).toBeCloseTo(margin(model, x), 8);
+    expect(expectedMargin(model) + c.reduce((a, b) => a + b, 0)).toBeCloseTo(margin(model, x), 8);
   });
 
   it("is deterministic for a fixed seed", () => {

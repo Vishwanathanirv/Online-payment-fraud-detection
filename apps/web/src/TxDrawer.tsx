@@ -23,6 +23,7 @@ const FEATURE_NAMES: Record<string, string> = {
   category_risk: "Category risk",
   card_age_days_log: "Card age",
   card_history_size_log: "History length",
+  device_other_cards_24h: "Other cards on device",
 };
 
 export function TxDrawer({ tx, onClose, onLabeled }: { tx: Tx; onClose: () => void; onLabeled?: (t: Tx) => void }) {
@@ -104,7 +105,7 @@ export function TxDrawer({ tx, onClose, onLabeled }: { tx: Tx; onClose: () => vo
         )}
 
         <h3 className="label mt-7">Model explanation</h3>
-        <p className="mt-1 text-xs text-faint">How much each signal pushed the score up (red) or down (green), from the tree paths this transaction took.</p>
+        <p className="mt-1 text-xs text-faint">Exact SHAP values: how far each signal moved this payment away from an average payment, up (red) or down (green). Together they add up to the model's score.</p>
         <div className="mt-3 space-y-1.5">
           {t.contributions.map((c) => (
             <div key={c.feature} className="grid grid-cols-[9.5rem_1fr] items-center gap-3 text-xs">

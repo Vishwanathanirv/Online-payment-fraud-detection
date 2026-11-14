@@ -9,10 +9,12 @@ import { Cases } from "./pages/Cases";
 import { Model } from "./pages/Model";
 import { DriftPage } from "./pages/Drift";
 import { Playground } from "./pages/Playground";
+import { Rings } from "./pages/Rings";
 
 const NAV = [
   { to: "/", t: "Live" },
   { to: "/cases", t: "Cases" },
+  { to: "/rings", t: "Rings" },
   { to: "/model", t: "Model" },
   { to: "/drift", t: "Drift" },
   { to: "/try", t: "Try it" },
@@ -43,6 +45,7 @@ function Shell() {
         <Routes>
           <Route path="/" element={<Live />} />
           <Route path="/cases" element={<Cases />} />
+          <Route path="/rings" element={<Rings />} />
           <Route path="/model" element={<Model />} />
           <Route path="/drift" element={<DriftPage />} />
           <Route path="/try" element={<Playground />} />

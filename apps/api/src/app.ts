@@ -6,7 +6,7 @@ import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import fastifyStatic from "@fastify/static";
 import { z } from "zod";
-import { CATEGORIES, CHANNELS, DEFAULT_RULES, type ModelBundle, type Transaction } from "@fraudlens/core";
+import { CATEGORIES, CHANNELS, DEFAULT_RULES, NotEnoughData, hasCover, type ModelBundle, type Transaction } from "@fraudlens/core";
 import { Store } from "./db";
 import { Engine } from "./engine";
 
@@ -71,7 +71,7 @@ export async function buildApp(opts: AppOptions = {}): Promise<{ app: FastifyIns
     return reply.status(status).send({ error: status >= 500 ? "Internal error" : (err as Error).message });
   });
 
-  app.get("/api/health", async () => ({ ok: true, model: bundle.version, simulator: engine.state, cardsTracked: engine.scorer.store.size }));
+  app.get("/api/health", async () => ({ ok: true, model: engine.scorer.bundle.version, simulator: engine.state, cardsTracked: engine.scorer.store.size }));
 
   app.get("/api/model", async () => ({
     version: bundle.version,
@@ -79,8 +79,41 @@ export async function buildApp(opts: AppOptions = {}): Promise<{ app: FastifyIns
     thresholds: bundle.thresholds,
     report: bundle.report,
     trees: bundle.gbdt.trees.length,
+    explainer: hasCover(bundle.gbdt) ? "exact TreeSHAP" : "Saabas approximation",
     rules: engine.scorer.rules.map(({ when: _w, ...r }) => r),
   }));
+
+  // ---------- fraud rings ----------
+  app.get("/api/rings", async () => ({ rings: engine.ops.ringList(), windowHours: engine.ops.rings.windowMs / 3_600_000, blockedDevices: engine.scorer.blockedDevices.size }));
+
+  app.post("/api/rings/:id/block", async (req, reply) => {
+    requireAdmin(req.headers.authorization);
+    const { blocked } = z.object({ blocked: z.boolean() }).parse(req.body);
+    const ring = engine.ops.setRingBlocked((req.params as { id: string }).id, blocked);
+    return ring ? { ring } : reply.status(404).send({ error: "Ring not found (it may have aged out of the window)" });
+  });
+
+  // ---------- feedback loop ----------
+  app.get("/api/feedback", async () => engine.ops.feedbackSummary());
+
+  app.post("/api/feedback/challenge", { config: { rateLimit: { max: 6, timeWindow: "1 minute" } } }, async (req, reply) => {
+    requireAdmin(req.headers.authorization);
+    try {
+      return { report: engine.ops.runChallenge() };
+    } catch (e) {
+      if (e instanceof NotEnoughData) return reply.status(409).send({ error: e.message });
+      throw e;
+    }
+  });
+
+  app.post("/api/feedback/promote", async (req, reply) => {
+    requireAdmin(req.headers.authorization);
+    try {
+      return { version: engine.ops.promote() };
+    } catch (e) {
+      return reply.status(409).send({ error: (e as Error).message });
+    }
+  });
 
   app.post("/api/score", { config: { rateLimit: { max: 120, timeWindow: "1 minute" } } }, async (req) => {
     const body = TxInput.parse(req.body);
@@ -131,6 +164,7 @@ export async function buildApp(opts: AppOptions = {}): Promise<{ app: FastifyIns
     const { label } = z.object({ label: z.enum(["fraud", "legit"]) }).parse(req.body);
     const tx = store.label(id, label);
     if (!tx) return reply.status(404).send({ error: "Not found" });
+    engine.ops.label(id, label);
     engine.emit("label", tx);
     return { transaction: tx };
   });

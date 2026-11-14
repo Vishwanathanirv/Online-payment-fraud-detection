@@ -85,3 +85,57 @@ describe("API", () => {
     expect(rule.json().rule.enabled).toBe(false);
   });
 });
+
+describe("fraud rings and the feedback loop", () => {
+  it("surfaces a ring, and blocking it blocks the crew's next payment", async () => {
+    const now = Date.now();
+    for (let i = 0; i < 6; i++) {
+      await app.inject({ method: "POST", url: "/api/score?record=true", payload: { category: "gift_cards", amount: 4200 + i, channel: "online", cardId: `card_victim_${i}`, deviceId: "crew_phone_9", merchantId: "m_fence", ts: now - (10 - i) * 60_000 } });
+    }
+    const rings = (await app.inject("/api/rings")).json().rings;
+    const ring = rings.find((r: { devices: string[] }) => r.devices.includes("crew_phone_9"));
+    expect(ring.cards).toBe(6);
+    expect(ring.blocked).toBe(false);
+
+    const denied = await app.inject({ method: "POST", url: `/api/rings/${ring.id}/block`, payload: { blocked: true } });
+    expect(denied.statusCode).toBe(401);
+    const ok = await app.inject({ method: "POST", url: `/api/rings/${ring.id}/block`, payload: { blocked: true }, headers: { authorization: "Bearer secret" } });
+    expect(ok.json().ring.blocked).toBe(true);
+
+    const next = (await app.inject({ method: "POST", url: "/api/score", payload: { category: "grocery", amount: 300, channel: "online", cardId: "card_new_victim", deviceId: "crew_phone_9" } })).json();
+    expect(next.result.decision).toBe("block");
+    expect(next.result.rulesFired).toContain("blocked_device");
+  });
+
+  it("refuses to train a challenger without enough confirmed fraud", async () => {
+    const r = await app.inject({ method: "POST", url: "/api/feedback/challenge", headers: { authorization: "Bearer secret" } });
+    expect(r.statusCode).toBe(409);
+    expect(r.json().error).toMatch(/at least 20 confirmed frauds/);
+  });
+
+  it("trains a challenger from outcomes, compares at equal workload, and promotes only a winner", async () => {
+    const start = Date.now() - 12 * 86_400_000;
+    for (const t of engine.sim.generate(12, start).filter((x) => x.ts < Date.now())) engine.ingest(t);
+    const summary = (await app.inject("/api/feedback")).json();
+    expect(summary.outcomes).toBeGreaterThan(500);
+    expect(summary.fraud).toBeGreaterThan(28);
+
+    const r = await app.inject({ method: "POST", url: "/api/feedback/challenge", headers: { authorization: "Bearer secret" } });
+    expect(r.statusCode).toBe(200);
+    const report = r.json().report;
+    expect(report.rows.train).toBeGreaterThan(report.rows.test);
+    expect(report.workload).toBeGreaterThan(0);
+    for (const m of [report.champion, report.challenger]) expect(m.prAuc).toBeGreaterThan(0);
+
+    const before = engine.scorer.bundle.gbdt.trees.length;
+    const p = await app.inject({ method: "POST", url: "/api/feedback/promote", headers: { authorization: "Bearer secret" } });
+    if (report.promote) {
+      expect(p.statusCode).toBe(200);
+      expect(engine.scorer.bundle.gbdt.trees.length).toBe(before + report.newTrees);
+      expect((await app.inject("/api/health")).json().model).toMatch(/\+r1$/);
+    } else {
+      expect(p.statusCode).toBe(409);
+      expect(engine.scorer.bundle.gbdt.trees.length).toBe(before);
+    }
+  });
+});

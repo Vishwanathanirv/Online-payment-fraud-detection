@@ -10,3 +10,6 @@ export * from "./calibration";
 export * from "./drift";
 export * from "./scorer";
 export * from "./train";
+export * from "./graph";
+export * from "./retrain";
+export * from "./ops";

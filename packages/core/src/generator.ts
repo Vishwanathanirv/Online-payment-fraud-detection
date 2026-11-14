@@ -86,6 +86,8 @@ export class PaymentSimulator {
       const city = CITIES[cityIdx];
       const devs = [`d_${i}_0`];
       if (this.r.chance(0.35)) devs.push(`d_${i}_1`);
+      // Households share devices (a family tablet), so "two cards on one device" is normal.
+      if (i > 0 && this.r.chance(0.08)) devs.push(this.customers[this.r.int(Math.max(0, i - 20), i - 1)].devices[0]);
       this.customers.push({
         id: `c_${i}`,
         city: cityIdx,
@@ -160,7 +162,7 @@ export class PaymentSimulator {
 
   private attack(c: Customer, ts: number): LabeledTransaction[] {
     const r = this.r;
-    const kind = r.weighted(["card_testing", "account_takeover", "impossible_travel", "friendly_spike"] as const, [3, 4, 2, 1.5]);
+    const kind = r.weighted(["card_testing", "account_takeover", "impossible_travel", "friendly_spike", "fraud_ring"] as const, [3, 4, 2, 1.5, 2.5]);
     const fraudDevice = `fd_${r.int(0, 50)}`; // fraud rings reuse a small pool of devices
     if (kind === "card_testing") {
       const out: LabeledTransaction[] = [];
@@ -173,6 +175,21 @@ export class PaymentSimulator {
       }
       const m = this.merchantIn(r.pick(["electronics", "gift_cards", "crypto"] as const), undefined, true);
       out.push(this.tx(c, t + r.exp(1 / (10 * MIN)), m, r.logNormal(25000, 0.5), { scenario: kind, isFraud: true, deviceId: fraudDevice, channel: "online" }));
+      return out;
+    }
+    if (kind === "fraud_ring") {
+      // A cash-out crew: one phone, a batch of stolen cards, a colluding online merchant.
+      // Each charge is modest and in daylight, so it only stands out as a group.
+      const crew = r.int(0, 7);
+      const device = `ring_${crew}`;
+      const fence = this.ringMerchant(crew);
+      const victims = [c, ...Array.from({ length: r.int(3, 7) }, () => r.pick(this.customers))];
+      const out: LabeledTransaction[] = [];
+      let t = ts;
+      for (const v of victims) {
+        out.push(this.tx(v, t, fence, r.logNormal(4500, 0.45), { scenario: kind, isFraud: true, deviceId: device, channel: "online" }));
+        t += r.int(2, 25) * MIN;
+      }
       return out;
     }
     if (kind === "account_takeover") {
@@ -193,6 +210,17 @@ export class PaymentSimulator {
     // friendly_spike: the hardest case, a familiar device and category but an outsized amount.
     const m = this.merchantIn(r.pick(c.favourites), c.city);
     return [this.tx(c, ts, m, r.logNormal(CATEGORY_AMOUNT[m.category] * c.budget * 6, 0.4), { scenario: kind, isFraud: true })];
+  }
+
+  private rings = new Map<number, Merchant>();
+  /** Each crew launders through its own online merchant. */
+  private ringMerchant(crew: number): Merchant {
+    let m = this.rings.get(crew);
+    if (!m) {
+      m = this.merchantIn(this.r.pick(["gift_cards", "digital_goods", "electronics"] as const), undefined, true);
+      this.rings.set(crew, m);
+    }
+    return m;
   }
 
   /** Generates `days` of history, sorted by time. */

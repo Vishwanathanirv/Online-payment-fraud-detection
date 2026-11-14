@@ -26,6 +26,7 @@ export const FEATURES = [
   "category_risk",
   "card_age_days_log",
   "card_history_size_log",
+  "device_other_cards_24h",
 ] as const;
 export type FeatureName = (typeof FEATURES)[number];
 
@@ -50,6 +51,7 @@ export const FEATURE_LABELS: Record<FeatureName, string> = {
   category_risk: "Merchant category risk",
   card_age_days_log: "Card age",
   card_history_size_log: "Length of card history",
+  device_other_cards_24h: "Other cards used on this device (24h)",
 };
 
 // Prior risk per category from industry loss patterns (not from labels, to avoid leakage).
@@ -92,6 +94,8 @@ const log1p = (x: number) => Math.log1p(Math.max(0, x));
 
 export class FeatureStore {
   private cards = new Map<string, CardState>();
+  /** Recent card sightings per device: the link that exposes fraud rings. */
+  private deviceCards = new Map<string, { ts: number; cardId: string }[]>();
   constructor(private maxRecent = 64) {}
 
   get size() {
@@ -153,7 +157,16 @@ export class FeatureStore {
       category_risk: CATEGORY_RISK[t.category] ?? 0.3,
       card_age_days_log: log1p((t.ts - t.cardCreatedAt) / 86_400_000),
       card_history_size_log: log1p(n),
+      device_other_cards_24h: this.otherCards(t),
     };
+  }
+
+  private otherCards(t: Transaction): number {
+    const seen = this.deviceCards.get(t.deviceId);
+    if (!seen) return 0;
+    const cards = new Set<string>();
+    for (const s of seen) if (t.ts - s.ts <= 86_400_000 && t.ts >= s.ts && s.cardId !== t.cardId) cards.add(s.cardId);
+    return cards.size;
   }
 
   /** Records a transaction into the card's history (after scoring). */
@@ -173,6 +186,13 @@ export class FeatureStore {
     s.merchants.add(t.merchantId);
     s.categories.add(t.category);
     s.last = { ts: t.ts, lat: t.lat, lon: t.lon };
+    let seen = this.deviceCards.get(t.deviceId);
+    if (!seen) {
+      seen = [];
+      this.deviceCards.set(t.deviceId, seen);
+    }
+    seen.push({ ts: t.ts, cardId: t.cardId });
+    while (seen.length && (t.ts - seen[0].ts > 86_400_000 || seen.length > 200)) seen.shift();
   }
 
   /** Convenience: compute then update. */

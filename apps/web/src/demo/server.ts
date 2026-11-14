@@ -3,7 +3,10 @@ import {
   CHANNELS,
   FEATURES,
   PaymentSimulator,
+  NotEnoughData,
+  Operations,
   Scorer,
+  hasCover,
   driftLevel,
   psi,
   toVector,
@@ -29,6 +32,7 @@ const MAX_STORED = 20_000;
 class DemoServer {
   private bundle!: ModelBundle;
   private scorer!: Scorer;
+  private ops!: Operations;
   private sim!: PaymentSimulator;
   private txs: Stored[] = [];
   private byId = new Map<string, Stored>();
@@ -48,6 +52,7 @@ class DemoServer {
     const res = await fetch("/model.json");
     this.bundle = (await res.json()) as ModelBundle;
     this.scorer = new Scorer(this.bundle);
+    this.ops = new Operations(this.scorer);
     this.sim = new PaymentSimulator({ seed: Math.floor(Math.random() * 1e6), customers: 900 });
     // Warm card histories with two weeks of behaviour, yielding to the UI between days.
     const days = 14;
@@ -124,6 +129,7 @@ class DemoServer {
 
   ingest(t: LabeledTransaction | (Transaction & { isFraud?: boolean; scenario?: string })): Stored {
     const r = this.scorer.score(t);
+    this.ops.observe(t, r);
     const s = this.store(t, r);
     this.window.push(toVector(r.features));
     if (this.window.length > 3000) this.window.shift();
@@ -146,7 +152,30 @@ class DemoServer {
     try {
       if (method === "GET" && p === "/api/health") return ok({ ok: true, model: this.bundle.version, simulator: this.state, cardsTracked: this.scorer.store.size, mode: "browser" });
       if (method === "GET" && p === "/api/model")
-        return ok({ version: this.bundle.version, trainedAt: this.bundle.trainedAt, thresholds: this.bundle.thresholds, report: this.bundle.report, trees: this.bundle.gbdt.trees.length, rules: this.rules() });
+        return ok({ version: this.bundle.version, trainedAt: this.bundle.trainedAt, thresholds: this.bundle.thresholds, report: this.bundle.report, trees: this.bundle.gbdt.trees.length, explainer: hasCover(this.bundle.gbdt) ? "exact TreeSHAP" : "Saabas approximation", rules: this.rules() });
+      if (method === "GET" && p === "/api/rings") return ok({ rings: this.ops.ringList(), windowHours: this.ops.rings.windowMs / 3_600_000, blockedDevices: this.scorer.blockedDevices.size });
+      const rm = p.match(/^\/api\/rings\/([^/]+)\/block$/);
+      if (method === "POST" && rm) {
+        const ring = this.ops.setRingBlocked(decodeURIComponent(rm[1]), Boolean((body as { blocked?: boolean })?.blocked));
+        return ring ? ok({ ring }) : err(404, "Ring not found (it may have aged out of the window)");
+      }
+      if (method === "GET" && p === "/api/feedback") return ok(this.ops.feedbackSummary());
+      if (method === "POST" && p === "/api/feedback/challenge") {
+        try {
+          await new Promise((r) => setTimeout(r, 0));
+          return ok({ report: this.ops.runChallenge() });
+        } catch (e) {
+          if (e instanceof NotEnoughData) return err(409, e.message);
+          throw e;
+        }
+      }
+      if (method === "POST" && p === "/api/feedback/promote") {
+        try {
+          return ok({ version: this.ops.promote() });
+        } catch (e) {
+          return err(409, (e as Error).message);
+        }
+      }
       if (method === "POST" && p === "/api/score") {
         const t = toTransaction(body);
         if (q.record === "true") return ok({ transaction: this.ingest(t) });
@@ -167,6 +196,7 @@ class DemoServer {
         if (!t) return err(404, "Not found");
         if (label !== "fraud" && label !== "legit") return err(400, "label: must be fraud or legit");
         t.label = label;
+        this.ops.label(t.id, label);
         t.labeledAt = Date.now();
         return ok({ transaction: t });
       }

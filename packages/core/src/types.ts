@@ -15,7 +15,7 @@ export type Category = (typeof CATEGORIES)[number];
 export const CHANNELS = ["pos", "online", "upi"] as const;
 export type Channel = (typeof CHANNELS)[number];
 
-export type Scenario = "legit" | "card_testing" | "account_takeover" | "impossible_travel" | "compromised_merchant" | "friendly_spike";
+export type Scenario = "legit" | "card_testing" | "account_takeover" | "impossible_travel" | "compromised_merchant" | "friendly_spike" | "fraud_ring";
 
 /** A raw card transaction, as it would arrive from a payment gateway. */
 export type Transaction = {

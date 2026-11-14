@@ -1,11 +1,12 @@
-import { nice, pct, type ModelInfo } from "../api";
+import { useState } from "react";
+import { api, inr, nice, pct, type ModelInfo } from "../api";
 import { Kpi, LineChart, Panel } from "../components";
 import { usePoll } from "../hooks";
 
 const NAMES = { gbdt: "Gradient-boosted trees", logreg: "Logistic regression", iforest: "Isolation forest", ensemble: "Blended ensemble" } as const;
 
 export function Model() {
-  const { data } = usePoll<ModelInfo>("/api/model", 0);
+  const { data, reload } = usePoll<ModelInfo>("/api/model", 0);
   if (!data) return <p className="text-muted">Loading model…</p>;
   const r = data.report;
   const g = r.models.gbdt;
@@ -16,7 +17,7 @@ export function Model() {
         <h1 className="text-2xl font-semibold tracking-tight">Model performance</h1>
         <p className="mt-1 text-sm text-muted">
           Evaluated on the last {Math.round(r.data.days * 0.15)} days of data the model never saw ({r.data.test.toLocaleString("en-IN")} transactions, {r.data.testFraud} fraud). Model{" "}
-          <span className="font-mono text-xs">{data.version}</span>, {data.trees} trees.
+          <span className="font-mono text-xs">{data.version}</span>, {data.trees} trees, explained with {data.explainer ?? "TreeSHAP"}.
         </p>
       </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
@@ -161,6 +162,146 @@ export function Model() {
           </div>
         </Panel>
       </div>
+      <FeedbackLoop onPromoted={reload} />
     </div>
+  );
+}
+
+type Score = { prAuc: number; rocAuc: number; recallAtWorkload: number; fraudAmountCaught: number };
+type Report = {
+  trainedAt: string;
+  rows: { train: number; test: number; trainFraud: number; testFraud: number; analystLabels: number };
+  workload: number;
+  champion: Score;
+  challenger: Score;
+  newTrees: number;
+  promote: boolean;
+  verdict: string;
+  trainingMs: number;
+};
+type Feedback = {
+  outcomes: number;
+  analystLabels: number;
+  fraud: number;
+  lastChallenge: Report | null;
+  canPromote: boolean;
+  history: { version: string; promotedAt: string; trees: number; prAuc: number | null; note: string }[];
+  model: { version: string; trees: number };
+};
+
+function FeedbackLoop({ onPromoted }: { onPromoted: () => void }) {
+  const { data, reload } = usePoll<Feedback>("/api/feedback", 5000);
+  const [busy, setBusy] = useState<"challenge" | "promote" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function run(kind: "challenge" | "promote") {
+    setBusy(kind);
+    setError(null);
+    try {
+      await api(`/api/feedback/${kind}`, { method: "POST" });
+      await reload();
+      if (kind === "promote") onPromoted();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const r = data?.lastChallenge;
+  const rows: [string, (s: Score) => string, keyof Score][] = [
+    ["Recall at the same workload", (s) => pct(s.recallAtWorkload), "recallAtWorkload"],
+    ["PR-AUC", (s) => s.prAuc.toFixed(3), "prAuc"],
+    ["ROC-AUC", (s) => s.rocAuc.toFixed(3), "rocAuc"],
+    ["Fraud ₹ caught", (s) => inr(s.fraudAmountCaught), "fraudAmountCaught"],
+  ];
+  return (
+    <Panel
+      title="Feedback loop: retrain on confirmed outcomes"
+      action={
+        <div className="flex gap-2">
+          <button className="btn h-8" disabled={!!busy} onClick={() => run("challenge")}>
+            {busy === "challenge" ? "Training…" : "Train a challenger"}
+          </button>
+          {data?.canPromote && (
+            <button className="btn btn-accent h-8" disabled={!!busy} onClick={() => run("promote")}>
+              Promote
+            </button>
+          )}
+        </div>
+      }
+    >
+      <div className="grid gap-5 p-4 lg:grid-cols-[1fr_1.4fr]">
+        <div className="space-y-3 text-sm">
+          <p className="text-muted">
+            Every scored payment eventually gets an outcome: an analyst&apos;s verdict from the case queue, or a chargeback from the issuer. A challenger keeps every existing tree and adds new ones fitted to recent mistakes. It is tested on later traffic it
+            never saw, with the same number of alerts as the live model, and is promoted only if it catches more fraud for that workload.
+          </p>
+          <dl className="grid grid-cols-3 gap-3">
+            <div className="rounded-xl bg-panel-2 p-3">
+              <dt className="label">Outcomes</dt>
+              <dd className="mt-1 font-mono">{data?.outcomes.toLocaleString("en-IN") ?? "–"}</dd>
+            </div>
+            <div className="rounded-xl bg-panel-2 p-3">
+              <dt className="label">Confirmed fraud</dt>
+              <dd className="mt-1 font-mono">{data?.fraud ?? "–"}</dd>
+            </div>
+            <div className="rounded-xl bg-panel-2 p-3">
+              <dt className="label">Analyst labels</dt>
+              <dd className="mt-1 font-mono">{data?.analystLabels ?? "–"}</dd>
+            </div>
+          </dl>
+          <div>
+            <div className="label mb-1.5">Model versions</div>
+            <ol className="space-y-1.5">
+              {data?.history.map((h, i) => (
+                <li key={h.version} className="flex items-baseline justify-between gap-3 text-xs">
+                  <span>
+                    <span className={`font-mono ${i === data.history.length - 1 ? "text-accent" : "text-muted"}`}>{h.version}</span> <span className="text-faint">· {h.note}</span>
+                  </span>
+                  <span className="font-mono text-faint">{h.trees} trees</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </div>
+        <div>
+          {error && <p className="mb-3 rounded-lg bg-bad-soft px-3 py-2 text-sm text-bad">{error}</p>}
+          {r ? (
+            <>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="label text-left">
+                    <th className="py-2 font-medium">On {r.rows.test.toLocaleString("en-IN")} later payments</th>
+                    <th className="px-2 py-2 text-right font-medium">Live model</th>
+                    <th className="py-2 text-right font-medium">Challenger</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map(([label, fmt, key]) => {
+                    const better = r.challenger[key] > r.champion[key];
+                    return (
+                      <tr key={label} className="border-t border-line">
+                        <td className="py-2">{label}</td>
+                        <td className="px-2 py-2 text-right font-mono">{fmt(r.champion)}</td>
+                        <td className="py-2 text-right font-mono" style={{ color: r.newTrees ? (better ? "var(--ok)" : r.challenger[key] < r.champion[key] ? "var(--bad)" : undefined) : undefined }}>
+                          {fmt(r.challenger)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <p className={`mt-3 rounded-lg px-3 py-2 text-sm ${r.promote ? "bg-ok-soft text-ok" : "bg-panel-2 text-muted"}`}>{r.verdict}</p>
+              <p className="mt-2 text-xs text-faint">
+                Trained on {r.rows.train.toLocaleString("en-IN")} outcomes ({r.rows.trainFraud} fraud) in {(r.trainingMs / 1000).toFixed(1)} s, +{r.newTrees} trees. Workload: {r.workload} alerts. Analyst labels count double.
+              </p>
+            </>
+          ) : (
+            <p className="rounded-xl border border-dashed border-line px-4 py-10 text-center text-sm text-muted">Train a challenger to compare it with the live model.</p>
+          )}
+        </div>
+      </div>
+    </Panel>
   );
 }

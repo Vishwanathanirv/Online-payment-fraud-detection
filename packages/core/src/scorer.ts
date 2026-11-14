@@ -93,6 +93,8 @@ function reasonFor(feature: FeatureName, value: number, t: Transaction): string 
       return `${value.toFixed(1)} hours away from this card's usual time`;
     case "category_risk":
       return `High-risk category (${t.category.replace("_", " ")})`;
+    case "device_other_cards_24h":
+      return `This device paid with ${value} other card${value === 1 ? "" : "s"} in the last 24 hours`;
     case "mins_since_last_log":
       return `Only ${Math.max(0, Math.round(Math.expm1(value)))} min since the previous transaction`;
     default:
@@ -102,6 +104,8 @@ function reasonFor(feature: FeatureName, value: number, t: Transaction): string 
 
 export class Scorer {
   readonly rules: Rule[];
+  /** Devices an analyst blocked after confirming a fraud ring. */
+  readonly blockedDevices = new Set<string>();
   constructor(readonly bundle: ModelBundle, readonly store = new FeatureStore(), rules: Rule[] = DEFAULT_RULES) {
     this.rules = rules.map((r) => ({ ...r }));
   }
@@ -126,6 +130,8 @@ export class Scorer {
       }
     }
     if (decision === "approve" && anomaly > 0.68) decision = "review"; // unseen pattern safety net
+    const deviceBlocked = this.blockedDevices.has(t.deviceId);
+    if (deviceBlocked) decision = "block";
 
     // Only explain risk when there is some: listing "reasons" on a safe payment is misleading.
     const risky = probability >= this.bundle.thresholds.review * 0.5 || decision !== "approve";
@@ -134,6 +140,10 @@ export class Scorer {
       .slice(0, 4)
       .map((c) => reasonFor(c.feature as FeatureName, c.value, t));
     for (const id of rulesFired) reasons.unshift(this.rules.find((r) => r.id === id)!.description);
+    if (deviceBlocked) {
+      rulesFired.unshift("blocked_device");
+      reasons.unshift("Device blocked: linked to a confirmed fraud ring");
+    }
     if (opts.record !== false) this.store.update(t);
     return { probability, anomaly, decision, reasons: [...new Set(reasons)].slice(0, 5), contributions: contributions.slice(0, 8), rulesFired, features: f, latencyMs: performance.now() - start };
   }
