@@ -72,19 +72,19 @@ export function TxDrawer({ tx, onClose, onLabeled }: { tx: Tx; onClose: () => vo
         </div>
 
         <div className="mt-6 grid grid-cols-3 gap-3">
-          <div className="rounded-xl bg-panel-2 p-3">
+          <div className="rounded-[3px] bg-panel-2 p-3">
             <div className="label">Decision</div>
             <div className="mt-2">
               <DecisionBadge d={t.decision} />
             </div>
           </div>
-          <div className="rounded-xl bg-panel-2 p-3">
+          <div className="rounded-[3px] bg-panel-2 p-3">
             <div className="label">Fraud risk</div>
             <div className="mt-2">
               <RiskBar p={t.probability} width={56} />
             </div>
           </div>
-          <div className="rounded-xl bg-panel-2 p-3">
+          <div className="rounded-[3px] bg-panel-2 p-3">
             <div className="label">Anomaly</div>
             <div className="mt-1.5 font-mono text-sm">{t.anomaly.toFixed(2)}</div>
           </div>
@@ -138,7 +138,7 @@ export function TxDrawer({ tx, onClose, onLabeled }: { tx: Tx; onClose: () => vo
           </>
         )}
 
-        <div className="mt-7 rounded-xl border border-line p-4">
+        <div className="mt-7 rounded-[3px] border border-line p-4">
           <div className="flex items-center justify-between">
             <h3 className="label">Analyst verdict</h3>
             {t.label && <span className={`text-sm font-medium ${t.label === "fraud" ? "text-bad" : "text-ok"}`}>Marked {t.label}</span>}

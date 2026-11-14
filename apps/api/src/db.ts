@@ -2,6 +2,7 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { Contribution, Decision, LabeledTransaction, ScoreResult } from "@fraudlens/core";
+import { strongest } from "@fraudlens/core";
 
 export type StoredTx = {
   id: string;
@@ -96,7 +97,7 @@ export class Store {
   insert(t: Omit<LabeledTransaction, "isFraud" | "scenario"> & { isFraud?: boolean; scenario?: string }, s: ScoreResult): StoredTx {
     this.insertStmt.run(
       t.id, t.ts, t.cardId, t.merchantId, t.category, t.amount, t.channel, t.country, t.deviceId, s.decision, s.probability, s.anomaly,
-      JSON.stringify(s.reasons), JSON.stringify(s.contributions.slice(0, 6)), JSON.stringify(s.rulesFired), s.latencyMs, t.scenario ?? null, t.isFraud === undefined ? null : t.isFraud ? 1 : 0,
+      JSON.stringify(s.reasons), JSON.stringify(strongest(s.contributions, 6)), JSON.stringify(s.rulesFired), s.latencyMs, t.scenario ?? null, t.isFraud === undefined ? null : t.isFraud ? 1 : 0,
     );
     return this.get(t.id)!;
   }

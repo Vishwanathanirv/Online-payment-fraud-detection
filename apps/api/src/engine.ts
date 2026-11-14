@@ -1,11 +1,11 @@
 import { EventEmitter } from "node:events";
 import {
   FEATURES,
+  demoCardHistory,
   Operations,
   PaymentSimulator,
   Scorer,
-  driftLevel,
-  psi,
+  driftReport,
   toVector,
   type LabeledTransaction,
   type ModelBundle,
@@ -26,6 +26,7 @@ export class Engine extends EventEmitter {
   readonly state: SimulatorState;
   private timer: NodeJS.Timeout | null = null;
   private window: number[][] = [];
+  private warmDays = 21;
   private pending = new Set<NodeJS.Timeout>();
   private scored = 0;
 
@@ -38,8 +39,10 @@ export class Engine extends EventEmitter {
     this.state = { running: true, tps: 3, fraudBoost: 6, ...opts.state };
     // Warm card histories with three weeks of past behaviour so live features are meaningful.
     const days = opts.warmDays ?? 21;
+    this.warmDays = days;
     const start = Date.now() - days * 86_400_000;
     for (const t of this.sim.generate(days, start)) if (t.ts < Date.now()) this.scorer.store.update(t);
+    for (const t of demoCardHistory()) this.scorer.store.update(t);
   }
 
   start() {
@@ -93,13 +96,7 @@ export class Engine extends EventEmitter {
   }
 
   drift() {
-    const live = this.window;
-    const rows = FEATURES.map((f, i) => {
-      const values = live.map((v) => v[i]);
-      const value = values.length >= 200 ? psi(this.bundle.reference[f], values) : null;
-      return { feature: f, psi: value, level: value === null ? "insufficient data" : driftLevel(value) };
-    }).sort((a, b) => (b.psi ?? -1) - (a.psi ?? -1));
-    return { windowSize: live.length, features: rows };
+    return { windowSize: this.window.length, features: driftReport(this.bundle.reference, FEATURES, this.window, this.warmDays, 90) };
   }
 
   shutdown() {

@@ -10,3 +10,5 @@ data/
 models/report.json
 .DS_Store
 apps/web/public/model.json
+test-results/
+playwright-report/

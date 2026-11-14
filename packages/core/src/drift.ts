@@ -36,3 +36,30 @@ export function psi(ref: Reference, live: number[]): number {
 }
 
 export const driftLevel = (v: number) => (v < 0.1 ? "stable" : v < 0.25 ? "moderate" : "significant");
+
+export type DriftRow = { feature: string; psi: number | null; level: string; why?: string };
+
+/** Features whose shift in a short live window is expected rather than a sign the model is going stale. */
+const CLOCK = new Set(["is_night", "hour_deviation"]);
+const HISTORY = new Set(["card_age_days_log", "card_history_size_log", "mins_since_last_log"]);
+
+/**
+ * PSI for every feature over the live window. Time-of-day features always move in a window of a
+ * few minutes (it is all one time of day), and card-history features move when the live system
+ * has seen less history than the training set, so both are reported as expected, with the
+ * reason, instead of raising a false alarm. Real drift is listed first.
+ */
+export function driftReport(reference: Record<string, Reference>, features: readonly string[], window: number[][], historyDays?: number, trainedDays = 90): DriftRow[] {
+  const rows = features.map((f, i): DriftRow => {
+    const values = window.map((v) => v[i]);
+    const value = values.length >= 200 && reference[f] ? psi(reference[f], values) : null;
+    if (value === null) return { feature: f, psi: null, level: "insufficient data" };
+    const level = driftLevel(value);
+    if (level !== "stable" && CLOCK.has(f)) return { feature: f, psi: value, level: "expected", why: "follows the clock: a short live window is all one time of day" };
+    if (level !== "stable" && HISTORY.has(f) && historyDays !== undefined && historyDays < trainedDays)
+      return { feature: f, psi: value, level: "expected", why: `cards here have ${historyDays} days of history; the model trained on ${trainedDays}` };
+    return { feature: f, psi: value, level };
+  });
+  const rank = (r: DriftRow) => (r.level === "expected" ? -1 : (r.psi ?? -2));
+  return rows.sort((a, b) => rank(b) - rank(a));
+}

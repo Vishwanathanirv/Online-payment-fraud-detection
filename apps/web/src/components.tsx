@@ -2,13 +2,19 @@ import type { ReactNode } from "react";
 import { inr, nice, pct, time, type Decision, type Tx } from "./api";
 
 const DECISION_STYLE: Record<Decision, string> = {
-  approve: "bg-ok-soft text-ok",
-  review: "bg-warn-soft text-warn",
-  block: "bg-bad-soft text-bad",
+  approve: "text-ok",
+  review: "text-warn",
+  block: "text-bad",
 };
+/** What a fraud desk stamps on the slip. */
+const STAMP: Record<Decision, string> = { approve: "APPROVED", review: "HOLD", block: "DECLINED" };
 
 export function DecisionBadge({ d }: { d: Decision }) {
-  return <span className={`inline-flex rounded-md px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wider ${DECISION_STYLE[d]}`}>{d}</span>;
+  return (
+    <span className={`stamp ${DECISION_STYLE[d]} ${d === "approve" ? "opacity-60" : ""}`} aria-label={d}>
+      {STAMP[d]}
+    </span>
+  );
 }
 
 export function riskColor(p: number) {
@@ -26,15 +32,16 @@ export function RiskBar({ p, width = 72 }: { p: number; width?: number }) {
   );
 }
 
+/** One column of a ledger's totals line: a heavy rule, the figure, then what it counts. */
 export function Kpi({ label, value, sub, tone }: { label: string; value: ReactNode; sub?: ReactNode; tone?: "ok" | "warn" | "bad" | "accent" }) {
   const color = tone ? `var(--${tone})` : undefined;
   return (
-    <div className="panel p-4">
-      <div className="label">{label}</div>
-      <div className="mt-2 text-2xl font-semibold tabular-nums tracking-tight" style={{ color }}>
+    <div className="border-t-[3px] border-[var(--rule-strong)] pt-2.5">
+      <div className="font-mono text-[1.65rem] font-semibold leading-none tabular-nums tracking-tight" style={{ color }}>
         {value}
       </div>
-      {sub && <div className="mt-1 text-xs text-faint">{sub}</div>}
+      <div className="label mt-2 text-ink">{label}</div>
+      {sub && <div className="mt-0.5 text-xs text-faint">{sub}</div>}
     </div>
   );
 }
@@ -43,8 +50,8 @@ export function Panel({ title, action, children, className = "" }: { title?: Rea
   return (
     <section className={`panel ${className}`}>
       {(title || action) && (
-        <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
-          <h2 className="text-sm font-medium">{title}</h2>
+        <div className="panel-head flex items-center justify-between gap-3 px-4 py-2.5">
+          <h2 className="display text-[1.05rem] font-semibold">{title}</h2>
           {action}
         </div>
       )}
@@ -116,7 +123,7 @@ export function LineChart({ points, xLabel, yLabel, diagonal, area }: { points: 
 
 export function TxRow({ t, fresh, onOpen }: { t: Tx; fresh?: boolean; onOpen: (t: Tx) => void }) {
   return (
-    <tr className={`cursor-pointer border-t border-line hover:bg-panel-2 ${fresh ? "row-new" : ""}`} onClick={() => onOpen(t)}>
+    <tr className={`cursor-pointer border-t border-dashed border-line hover:bg-panel-2 ${fresh ? "row-new" : ""}`} onClick={() => onOpen(t)}>
       <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-faint">{time(t.ts)}</td>
       <td className="px-2 py-2.5 font-mono text-xs">{t.cardId}</td>
       <td className="hidden px-2 py-2.5 text-sm capitalize text-muted md:table-cell">{nice(t.category)}</td>

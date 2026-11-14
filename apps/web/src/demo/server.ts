@@ -2,13 +2,14 @@ import {
   CATEGORIES,
   CHANNELS,
   FEATURES,
+  strongest,
+  demoCardHistory,
   PaymentSimulator,
   NotEnoughData,
   Operations,
   Scorer,
   hasCover,
-  driftLevel,
-  psi,
+  driftReport,
   toVector,
   type Decision,
   type LabeledTransaction,
@@ -43,6 +44,8 @@ class DemoServer {
   private seq = 0;
   state = { running: true, tps: 3, fraudBoost: 6 };
   private ready: Promise<void>;
+  /** Features of backfilled payments that haven't been explained yet. */
+  private unexplained = new WeakMap<Stored, Parameters<Scorer["explain"]>[0]>();
 
   constructor() {
     this.ready = this.boot();
@@ -62,13 +65,15 @@ class DemoServer {
       for (const t of history.slice(i, i + 4000)) if (t.ts < Date.now()) this.scorer.store.update(t);
       await new Promise((r) => setTimeout(r, 0));
     }
+    for (const t of demoCardHistory()) this.scorer.store.update(t);
     // Backfill the last 20 minutes of live traffic so the dashboard, case queue and drift
     // monitor have something to show the moment the page opens.
     const now = Date.now();
     const n = 1200;
     for (let i = 0; i < n; i++) {
       const at = now - 20 * 60_000 + (i / n) * 20 * 60_000;
-      for (const e of this.sim.live(at, this.state.fraudBoost)) if (e.ts <= now) this.ingest(e);
+      // Backfilled payments are explained on demand, which keeps the demo's start fast.
+      for (const e of this.sim.live(at, this.state.fraudBoost)) if (e.ts <= now) this.ingest(e, "when-risky");
       if (i % 200 === 199) await new Promise((r) => setTimeout(r, 0));
     }
     this.start();
@@ -110,7 +115,7 @@ class DemoServer {
       probability: r.probability,
       anomaly: r.anomaly,
       reasons: r.reasons,
-      contributions: r.contributions.slice(0, 6),
+      contributions: strongest(r.contributions, 6),
       rulesFired: r.rulesFired,
       latencyMs: r.latencyMs,
       scenario: t.scenario ?? null,
@@ -120,6 +125,7 @@ class DemoServer {
     };
     this.txs.push(s);
     this.byId.set(s.id, s);
+    if (!s.contributions.length) this.unexplained.set(s, r.features);
     if (this.txs.length > MAX_STORED) {
       const old = this.txs.splice(0, this.txs.length - MAX_STORED);
       for (const o of old) if (!o.label) this.byId.delete(o.id);
@@ -127,8 +133,8 @@ class DemoServer {
     return s;
   }
 
-  ingest(t: LabeledTransaction | (Transaction & { isFraud?: boolean; scenario?: string })): Stored {
-    const r = this.scorer.score(t);
+  ingest(t: LabeledTransaction | (Transaction & { isFraud?: boolean; scenario?: string }), explain: "always" | "when-risky" = "always"): Stored {
+    const r = this.scorer.score(t, { explain });
     this.ops.observe(t, r);
     const s = this.store(t, r);
     this.window.push(toVector(r.features));
@@ -187,6 +193,11 @@ class DemoServer {
       if (method === "GET" && m) {
         const t = this.byId.get(decodeURIComponent(m[1]));
         if (!t) return err(404, "Not found");
+        const f = this.unexplained.get(t);
+        if (f) {
+          t.contributions = this.scorer.explain(f, 6);
+          this.unexplained.delete(t);
+        }
         return ok({ transaction: t, cardHistory: this.list({ cardId: t.cardId, limit: "12" }) });
       }
       m = p.match(/^\/api\/transactions\/([^/]+)\/label$/);
@@ -278,12 +289,7 @@ class DemoServer {
   }
 
   private drift() {
-    const rows = FEATURES.map((f, i) => {
-      const values = this.window.map((v) => v[i]);
-      const value = values.length >= 200 ? psi(this.bundle.reference[f], values) : null;
-      return { feature: f, psi: value, level: value === null ? "insufficient data" : driftLevel(value) };
-    }).sort((a, b) => (b.psi ?? -1) - (a.psi ?? -1));
-    return { windowSize: this.window.length, features: rows };
+    return { windowSize: this.window.length, features: driftReport(this.bundle.reference, FEATURES, this.window, 14, 90) };
   }
 
   private batch(body: unknown) {

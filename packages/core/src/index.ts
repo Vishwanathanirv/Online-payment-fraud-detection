@@ -13,3 +13,4 @@ export * from "./train";
 export * from "./graph";
 export * from "./retrain";
 export * from "./ops";
+export * from "./demo-card";

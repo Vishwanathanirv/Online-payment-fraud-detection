@@ -1,42 +1,45 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #0b0f14;
-  --panel: #11171e;
-  --panel-2: #161e27;
-  --line: #1f2a35;
-  --ink: #e6edf3;
-  --muted: #8b98a5;
-  --faint: #5c6b79;
-  --accent: #5eead4;
-  --accent-ink: #062621;
-  --ok: #4ade80;
-  --ok-soft: rgba(74, 222, 128, 0.12);
-  --warn: #fbbf24;
-  --warn-soft: rgba(251, 191, 36, 0.13);
-  --bad: #f87171;
-  --bad-soft: rgba(248, 113, 113, 0.13);
-  color-scheme: dark;
+  /* "Night ledger": a bank's fraud desk. Cool ledger paper, carbon ink, rubber-stamp colours. */
+  --bg: #e6ebe9;
+  --panel: #f8f9f6;
+  --panel-2: #eef1ed;
+  --line: #d2d9d5;
+  --ink: #18212d;
+  --muted: #535e6b;
+  --faint: #86909b;
+  --accent: #2747a8;
+  --accent-ink: #ffffff;
+  --ok: #1b7445;
+  --ok-soft: rgba(27, 116, 69, 0.1);
+  --warn: #9c5d06;
+  --warn-soft: rgba(156, 93, 6, 0.11);
+  --bad: #bf1e31;
+  --bad-soft: rgba(191, 30, 49, 0.09);
+  --rule-strong: #18212d;
+  color-scheme: light;
 }
 
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) {
-    --bg: #f5f7f9;
-    --panel: #ffffff;
-    --panel-2: #f0f3f6;
-    --line: #dfe5ea;
-    --ink: #0f1419;
-    --muted: #55626e;
-    --faint: #8794a0;
-    --accent: #0d9488;
-    --accent-ink: #ffffff;
-    --ok: #15803d;
-    --ok-soft: rgba(21, 128, 61, 0.1);
-    --warn: #b45309;
-    --warn-soft: rgba(180, 83, 9, 0.1);
-    --bad: #dc2626;
-    --bad-soft: rgba(220, 38, 38, 0.09);
-    color-scheme: light;
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1217;
+    --panel: #161b22;
+    --panel-2: #1c232c;
+    --line: #29323d;
+    --ink: #e6eaef;
+    --muted: #9aa4b0;
+    --faint: #69747f;
+    --accent: #93a9ff;
+    --accent-ink: #0b1230;
+    --ok: #52c98c;
+    --ok-soft: rgba(82, 201, 140, 0.12);
+    --warn: #f0b24c;
+    --warn-soft: rgba(240, 178, 76, 0.12);
+    --bad: #ff6b7a;
+    --bad-soft: rgba(255, 107, 122, 0.12);
+    --rule-strong: #c9d1da;
+    color-scheme: dark;
   }
 }
 
@@ -57,6 +60,7 @@
   --color-bad: var(--bad);
   --color-bad-soft: var(--bad-soft);
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Archivo Variable", "Inter Variable", ui-sans-serif, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
@@ -74,15 +78,26 @@ body {
 }
 
 @layer components {
+  /* A sheet of ledger paper: square corners, ruled edge, a heavy rule under its title. */
   .panel {
     background: var(--panel);
     border: 1px solid var(--line);
-    border-radius: 14px;
+    border-radius: 3px;
+    box-shadow: 0 1px 0 var(--line), 0 10px 24px -22px rgba(0, 0, 0, 0.5);
+  }
+  .panel-head {
+    border-bottom: 2px solid var(--rule-strong);
+  }
+  .display {
+    font-family: var(--font-display);
+    font-stretch: 78%;
+    letter-spacing: -0.01em;
   }
   .label {
-    font-size: 11px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    font-family: var(--font-display);
+    font-stretch: 85%;
+    font-size: 12.5px;
+    letter-spacing: 0.01em;
     color: var(--muted);
     font-weight: 500;
   }
@@ -91,21 +106,22 @@ body {
     align-items: center;
     gap: 0.4rem;
     height: 2.25rem;
-    padding: 0 0.9rem;
-    border-radius: 9px;
+    padding: 0 0.95rem;
+    border-radius: 3px;
     font-size: 0.875rem;
-    font-weight: 500;
-    border: 1px solid var(--line);
-    background: var(--panel-2);
+    font-weight: 600;
+    border: 1.5px solid var(--ink);
+    background: transparent;
     color: var(--ink);
-    transition: border-color 0.15s, background 0.15s;
+    transition: background 0.15s, color 0.15s;
     cursor: pointer;
   }
   .btn:hover:not(:disabled) {
-    border-color: var(--muted);
+    background: var(--ink);
+    color: var(--panel);
   }
   .btn:disabled {
-    opacity: 0.5;
+    opacity: 0.45;
     cursor: not-allowed;
   }
   .btn-accent {
@@ -113,19 +129,74 @@ body {
     border-color: var(--accent);
     color: var(--accent-ink);
   }
+  .btn-accent:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--accent) 85%, var(--ink));
+    color: var(--accent-ink);
+  }
   .field {
     height: 2.25rem;
     width: 100%;
-    border-radius: 9px;
-    border: 1px solid var(--line);
-    background: var(--panel-2);
+    border-radius: 0;
+    border: 0;
+    border-bottom: 1.5px solid var(--faint);
+    background: transparent;
     color: var(--ink);
-    padding: 0 0.7rem;
-    font-size: 0.875rem;
+    padding: 0 0.2rem;
+    font-size: 0.95rem;
+    font-family: var(--font-mono);
   }
   .field:focus {
     outline: none;
-    border-color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  textarea.field {
+    border: 1px solid var(--line);
+    background: var(--panel-2);
+    padding: 0.6rem;
+  }
+  /* A rubber stamp: the decision, inked at a slight angle. */
+  .stamp {
+    display: inline-block;
+    padding: 1px 7px 0;
+    border: 2px solid currentColor;
+    border-radius: 3px;
+    font-family: var(--font-display);
+    font-stretch: 70%;
+    font-weight: 800;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    line-height: 1.35;
+    transform: rotate(-3deg);
+    opacity: 0.9;
+    mix-blend-mode: multiply;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .stamp {
+      mix-blend-mode: normal;
+    }
+  }
+  /* Folder tabs for the main sections. */
+  .tab {
+    position: relative;
+    padding: 0.45rem 0.9rem 0.5rem;
+    border: 1px solid transparent;
+    border-bottom: 0;
+    border-radius: 6px 6px 0 0;
+    color: var(--muted);
+    font-family: var(--font-display);
+    font-stretch: 85%;
+    font-weight: 600;
+    font-size: 0.95rem;
+    white-space: nowrap;
+  }
+  .tab:hover {
+    color: var(--ink);
+  }
+  .tab-active {
+    background: var(--panel);
+    border-color: var(--line);
+    color: var(--ink);
+    margin-bottom: -1px;
   }
 }
 
@@ -134,13 +205,22 @@ body {
   outline-offset: 2px;
 }
 
-@keyframes flash {
-  from { background: color-mix(in oklab, var(--accent) 16%, transparent); }
-  to { background: transparent; }
+/* New payments feed in from the top, like a till printing a receipt line. */
+@keyframes print {
+  from {
+    clip-path: inset(0 0 100% 0);
+    background: color-mix(in oklab, var(--accent) 10%, transparent);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    background: transparent;
+  }
 }
 .row-new {
-  animation: flash 1.2s ease-out;
+  animation: print 0.6s ease-out;
 }
 @media (prefers-reduced-motion: reduce) {
-  .row-new { animation: none; }
+  .row-new {
+    animation: none;
+  }
 }

@@ -6,6 +6,13 @@ export function useLiveFeed(max = 60) {
   const [items, setItems] = useState<Tx[]>([]);
   const [connected, setConnected] = useState(false);
   const fresh = useRef(new Set<string>());
+  // Only payments made in the last few seconds are "new". The backlog that fills the tape when
+  // the page opens is older, so the whole table doesn't play the print animation at once.
+  const markFresh = (tx: Tx) => {
+    if (Date.now() - tx.ts > 5000) return;
+    fresh.current.add(tx.id);
+    setTimeout(() => fresh.current.delete(tx.id), 1500);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -16,8 +23,7 @@ export function useLiveFeed(max = 60) {
         if (cancelled) return;
         void demo.handle("GET", "/api/health", undefined).then(() => !cancelled && setConnected(true));
         unsub = demo.subscribe((tx) => {
-          fresh.current.add(tx.id);
-          setTimeout(() => fresh.current.delete(tx.id), 1500);
+          markFresh(tx);
           setItems((prev) => [tx, ...prev.filter((p) => p.id !== tx.id)].slice(0, max));
         }) as unknown as () => void;
       });
@@ -30,8 +36,7 @@ export function useLiveFeed(max = 60) {
     es.addEventListener("hello", () => setConnected(true));
     es.addEventListener("tx", (e) => {
       const tx = JSON.parse((e as MessageEvent).data) as Tx;
-      fresh.current.add(tx.id);
-      setTimeout(() => fresh.current.delete(tx.id), 1500);
+      markFresh(tx);
       setItems((prev) => [tx, ...prev.filter((p) => p.id !== tx.id)].slice(0, max));
     });
     es.onerror = () => setConnected(false);

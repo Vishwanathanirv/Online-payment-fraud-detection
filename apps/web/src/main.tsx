@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, NavLink, Route, Routes } from "react-router";
 import "@fontsource-variable/inter";
+import "@fontsource-variable/archivo/wdth.css";
 import "@fontsource/jetbrains-mono/400.css";
 import "./index.css";
 import { Live } from "./pages/Live";
@@ -12,32 +13,32 @@ import { Playground } from "./pages/Playground";
 import { Rings } from "./pages/Rings";
 
 const NAV = [
-  { to: "/", t: "Live" },
+  { to: "/", t: "Live tape" },
   { to: "/cases", t: "Cases" },
   { to: "/rings", t: "Rings" },
   { to: "/model", t: "Model" },
   { to: "/drift", t: "Drift" },
-  { to: "/try", t: "Try it" },
+  { to: "/try", t: "Try a payment" },
 ];
 
 function Shell() {
   return (
     <div className="min-h-dvh">
-      <header className="sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-7xl items-center gap-6 px-4 sm:px-6">
-          <a href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-            <img src="/favicon.svg" alt="" className="h-6 w-6" />
-            FraudLens
+      <header className="border-b border-line">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-end gap-x-8 gap-y-2 px-4 pt-4 sm:px-6">
+          <a href="/" className="flex items-center gap-2.5 pb-2.5">
+            <img src="/favicon.svg" alt="" className="h-7 w-7" />
+            <span className="display text-[1.45rem] font-extrabold leading-none tracking-tight">FraudLens</span>
           </a>
-          <nav className="flex flex-1 gap-1 overflow-x-auto text-sm" aria-label="Main">
+          <nav className="-mb-px order-last flex basis-full gap-0.5 overflow-x-auto sm:order-none sm:flex-1 sm:basis-auto" aria-label="Main">
             {NAV.map((n) => (
-              <NavLink key={n.to} to={n.to} end className={({ isActive }) => `whitespace-nowrap rounded-lg px-3 py-1.5 ${isActive ? "bg-panel-2 text-ink" : "text-muted hover:text-ink"}`}>
+              <NavLink key={n.to} to={n.to} end className={({ isActive }) => `tab ${isActive ? "tab-active" : ""}`}>
                 {n.t}
               </NavLink>
             ))}
           </nav>
-          <a href="https://github.com/Vishwanathanirv/online-payment-fraud-detection" className="hidden text-sm text-muted hover:text-ink sm:block">
-            GitHub
+          <a href="https://github.com/Vishwanathanirv/online-payment-fraud-detection" className="hidden pb-3 text-sm text-muted underline-offset-4 hover:text-ink hover:underline sm:block">
+            Source on GitHub
           </a>
         </div>
       </header>
@@ -49,15 +50,15 @@ function Shell() {
           <Route path="/model" element={<Model />} />
           <Route path="/drift" element={<DriftPage />} />
           <Route path="/try" element={<Playground />} />
-          <Route path="*" element={<p className="text-muted">Page not found.</p>} />
+          <Route path="*" element={<p className="text-muted">There's no page here. Pick a tab above.</p>} />
         </Routes>
       </main>
       <footer className="mx-auto max-w-7xl px-4 pb-8 text-xs text-faint sm:px-6">
         Built by{" "}
         <a href="https://vishwanathan.dev" className="text-muted underline underline-offset-4">
           Vishwanathan R
-        </a>{" "}
-        · Synthetic data only, no real card details.
+        </a>
+        . Synthetic data only, no real card details.
       </footer>
     </div>
   );

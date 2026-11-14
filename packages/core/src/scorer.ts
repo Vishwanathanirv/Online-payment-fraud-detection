@@ -110,16 +110,27 @@ export class Scorer {
     this.rules = rules.map((r) => ({ ...r }));
   }
 
-  /** Scores a transaction and records it in the card's history. */
-  score(t: Transaction, opts: { record?: boolean } = {}): ScoreResult {
+  /** Exact TreeSHAP breakdown of a scored payment, from its features (used for on-demand explanations). */
+  explain(f: ReturnType<FeatureStore["compute"]>, n = 8) {
+    const contrib = explainGbdt(this.bundle.gbdt, toVector(f));
+    return strongest(FEATURES.map((k, i) => ({ feature: k, value: f[k], contribution: contrib[i] })), n);
+  }
+
+  /**
+   * Scores a transaction and records it in the card's history. With `explain: "when-risky"`,
+   * the exact TreeSHAP breakdown (most of the cost) is only computed for payments that need
+   * reasons; the rest can be explained later with explain(), when someone actually opens them.
+   */
+  score(t: Transaction, opts: { record?: boolean; explain?: "always" | "when-risky" } = {}): ScoreResult {
     const start = performance.now();
     const f = this.store.compute(t);
     const x = toVector(f);
     const raw = 1 / (1 + Math.exp(-margin(this.bundle.gbdt, x)));
     const probability = calibrate(this.bundle.calibrator, raw);
     const anomaly = anomalyScore(this.bundle.iforest, x);
-    const contrib = explainGbdt(this.bundle.gbdt, x);
-    const contributions = FEATURES.map((k, i) => ({ feature: k, value: f[k], contribution: contrib[i] })).sort((a, b) => b.contribution - a.contribution);
+    const needsReasons = probability >= this.bundle.thresholds.review * 0.5 || this.rules.some((r) => r.enabled && r.when(f, t)) || this.blockedDevices.has(t.deviceId) || anomaly > 0.68;
+    const contrib = opts.explain === "when-risky" && !needsReasons ? null : explainGbdt(this.bundle.gbdt, x);
+    const contributions = contrib ? FEATURES.map((k, i) => ({ feature: k, value: f[k], contribution: contrib[i] })).sort((a, b) => b.contribution - a.contribution) : [];
 
     let decision: Decision = probability >= this.bundle.thresholds.block ? "block" : probability >= this.bundle.thresholds.review ? "review" : "approve";
     const rulesFired: string[] = [];
@@ -145,10 +156,22 @@ export class Scorer {
       reasons.unshift("Device blocked: linked to a confirmed fraud ring");
     }
     if (opts.record !== false) this.store.update(t);
-    return { probability, anomaly, decision, reasons: [...new Set(reasons)].slice(0, 5), contributions: contributions.slice(0, 8), rulesFired, features: f, latencyMs: performance.now() - start };
+    return { probability, anomaly, decision, reasons: [...new Set(reasons)].slice(0, 5), contributions: strongest(contributions, 8), rulesFired, features: f, latencyMs: performance.now() - start };
   }
 
   baselineProbability(t: Transaction): number {
     return predictLogReg(this.bundle.logreg, toVector(this.store.compute(t)));
   }
+}
+
+/**
+ * The signals that moved this score the most, in either direction, ordered from "pushed risk
+ * up" to "pulled risk down". Taking only the top of the up-sorted list would hide every
+ * signal that made a payment look safe.
+ */
+export function strongest<T extends { contribution: number }>(xs: T[], n: number): T[] {
+  return [...xs]
+    .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
+    .slice(0, n)
+    .sort((a, b) => b.contribution - a.contribution);
 }

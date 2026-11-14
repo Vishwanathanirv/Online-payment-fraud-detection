@@ -40,11 +40,13 @@ export function Playground() {
   const [form, setForm] = useState<Form>(PRESETS[0].v);
   const [result, setResult] = useState<ScoreResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [csv, setCsv] = useState(CSV_SAMPLE);
   const [batch, setBatch] = useState<{ summary: Record<string, number>; results: { row: number; probability: number; decision: "approve" | "review" | "block"; reasons: string[] }[]; errors: { row: number; error: string }[] } | null>(null);
 
   async function score(f = form) {
     setError(null);
+    setBusy(true);
     const p = PLACES[f.place];
     const d = new Date();
     d.setHours(f.hour, 0, 0, 0);
@@ -56,6 +58,8 @@ export function Playground() {
       setResult(r.result);
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -73,8 +77,8 @@ export function Playground() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Try it</h1>
-        <p className="mt-1 text-sm text-muted">Score a payment yourself, or upload a CSV batch. Nothing here is saved.</p>
+        <h1 className="display text-[2.4rem] font-extrabold leading-none">Try a payment</h1>
+        <p className="mt-2 text-[0.95rem] text-muted">Score a payment yourself, or upload a CSV batch. Nothing here is saved.</p>
       </div>
       <div className="flex flex-wrap gap-2">
         {PRESETS.map((p) => (
@@ -138,7 +142,7 @@ export function Playground() {
               Unrecognised device
             </label>
             <div className="col-span-2">
-              <button className="btn btn-accent">Score payment</button>
+              <button className="btn btn-accent" disabled={busy}>{busy ? "Scoring…" : "Score payment"}</button>
             </div>
           </form>
         </Panel>
@@ -165,10 +169,10 @@ export function Playground() {
                   </li>
                 ))}
               </ul>
-              <p className="mt-5 text-xs text-faint">Scored against a demo card with a short history in Chennai, so velocity signals stay quiet. Use the CSV batch to test sequences.</p>
+              <p className="mt-5 text-xs text-faint">Scored against a demo customer: six weeks of everyday spending in Chennai on one phone, the last of it about 90 minutes ago. Use the CSV batch to test sequences.</p>
             </div>
           ) : (
-            <p className="p-4 text-sm text-muted">Pick a preset or fill in the form.</p>
+            <p className="p-4 text-sm text-muted" aria-live="polite">{busy ? "Scoring… (the first one waits for the demo bank to open its books)" : "Pick a preset or fill in the form."}</p>
           )}
         </Panel>
       </div>
@@ -214,7 +218,7 @@ export function Playground() {
           </div>
         </div>
       </Panel>
-      {error && <p className="rounded-lg bg-bad-soft px-3 py-2 text-sm text-bad">{error}</p>}
+      {error && <p className="rounded-[3px] bg-bad-soft px-3 py-2 text-sm text-bad">{error}</p>}
     </div>
   );
 }

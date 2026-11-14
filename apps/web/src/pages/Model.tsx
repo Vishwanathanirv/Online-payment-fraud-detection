@@ -14,8 +14,8 @@ export function Model() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Model performance</h1>
-        <p className="mt-1 text-sm text-muted">
+        <h1 className="display text-[2.4rem] font-extrabold leading-none">Model performance</h1>
+        <p className="mt-2 text-[0.95rem] text-muted">
           Evaluated on the last {Math.round(r.data.days * 0.15)} days of data the model never saw ({r.data.test.toLocaleString("en-IN")} transactions, {r.data.testFraud} fraud). Model{" "}
           <span className="font-mono text-xs">{data.version}</span>, {data.trees} trees, explained with {data.explainer ?? "TreeSHAP"}.
         </p>
@@ -47,7 +47,7 @@ export function Model() {
               { k: "Missed fraud", v: c.fn, tone: "bad" },
               { k: "Correctly approved", v: c.tn, tone: "muted" },
             ].map((x) => (
-              <div key={x.k} className="rounded-xl bg-panel-2 p-4">
+              <div key={x.k} className="rounded-[3px] bg-panel-2 p-4">
                 <div className="text-2xl font-semibold tabular-nums" style={{ color: `var(--${x.tone})` }}>
                   {x.v.toLocaleString("en-IN")}
                 </div>
@@ -238,15 +238,15 @@ function FeedbackLoop({ onPromoted }: { onPromoted: () => void }) {
             never saw, with the same number of alerts as the live model, and is promoted only if it catches more fraud for that workload.
           </p>
           <dl className="grid grid-cols-3 gap-3">
-            <div className="rounded-xl bg-panel-2 p-3">
+            <div className="rounded-[3px] bg-panel-2 p-3">
               <dt className="label">Outcomes</dt>
               <dd className="mt-1 font-mono">{data?.outcomes.toLocaleString("en-IN") ?? "–"}</dd>
             </div>
-            <div className="rounded-xl bg-panel-2 p-3">
+            <div className="rounded-[3px] bg-panel-2 p-3">
               <dt className="label">Confirmed fraud</dt>
               <dd className="mt-1 font-mono">{data?.fraud ?? "–"}</dd>
             </div>
-            <div className="rounded-xl bg-panel-2 p-3">
+            <div className="rounded-[3px] bg-panel-2 p-3">
               <dt className="label">Analyst labels</dt>
               <dd className="mt-1 font-mono">{data?.analystLabels ?? "–"}</dd>
             </div>
@@ -266,7 +266,7 @@ function FeedbackLoop({ onPromoted }: { onPromoted: () => void }) {
           </div>
         </div>
         <div>
-          {error && <p className="mb-3 rounded-lg bg-bad-soft px-3 py-2 text-sm text-bad">{error}</p>}
+          {error && <p className="mb-3 rounded-[3px] bg-bad-soft px-3 py-2 text-sm text-bad">{error}</p>}
           {r ? (
             <>
               <table className="w-full text-sm">
@@ -292,13 +292,13 @@ function FeedbackLoop({ onPromoted }: { onPromoted: () => void }) {
                   })}
                 </tbody>
               </table>
-              <p className={`mt-3 rounded-lg px-3 py-2 text-sm ${r.promote ? "bg-ok-soft text-ok" : "bg-panel-2 text-muted"}`}>{r.verdict}</p>
+              <p className={`mt-3 rounded-[3px] px-3 py-2 text-sm ${r.promote ? "bg-ok-soft text-ok" : "bg-panel-2 text-muted"}`}>{r.verdict}</p>
               <p className="mt-2 text-xs text-faint">
                 Trained on {r.rows.train.toLocaleString("en-IN")} outcomes ({r.rows.trainFraud} fraud) in {(r.trainingMs / 1000).toFixed(1)} s, +{r.newTrees} trees. Workload: {r.workload} alerts. Analyst labels count double.
               </p>
             </>
           ) : (
-            <p className="rounded-xl border border-dashed border-line px-4 py-10 text-center text-sm text-muted">Train a challenger to compare it with the live model.</p>
+            <p className="rounded-[3px] border border-dashed border-line px-4 py-10 text-center text-sm text-muted">Train a challenger to compare it with the live model.</p>
           )}
         </div>
       </div>

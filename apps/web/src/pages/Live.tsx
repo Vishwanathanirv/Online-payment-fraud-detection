@@ -32,13 +32,13 @@ export function Live() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Live monitoring</h1>
-          <p className="mt-1 text-sm text-muted">Every payment is scored as it arrives. Last 30 minutes.</p>
+          <h1 className="display text-[2.4rem] font-extrabold leading-none">The live tape</h1>
+          <p className="mt-2 max-w-xl text-[0.95rem] text-muted">Every card payment is scored the moment it arrives, by three models and a set of rules, and stamped approved, held for review or declined. Open any line to see exactly why.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs ${feed.connected ? "bg-ok-soft text-ok" : "bg-panel-2 text-muted"}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${feed.connected ? "animate-pulse bg-ok" : "bg-faint"}`} />
-            {feed.connected ? "Streaming" : "Connecting…"}
+          <span className="inline-flex items-center gap-2 px-1 text-sm text-muted" aria-live="polite">
+            <span className={`h-2 w-2 rounded-full ${feed.connected && sim?.running !== false ? "animate-pulse bg-ok" : "bg-faint"}`} />
+            {!feed.connected ? "Opening the books…" : sim?.running === false ? "Paused" : "Printing live"}
           </span>
           {sim && (
             <>
@@ -52,7 +52,7 @@ export function Live() {
           )}
         </div>
       </div>
-      {err && <p className="rounded-lg bg-bad-soft px-3 py-2 text-sm text-bad">{err}</p>}
+      {err && <p className="rounded-[3px] bg-bad-soft px-3 py-2 text-sm text-bad">{err}</p>}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <Kpi label="Scored" value={t ? t.total.toLocaleString("en-IN") : "–"} sub={sim ? `${sim.tps} per second` : undefined} />
@@ -75,8 +75,8 @@ export function Live() {
         <div className="px-4 py-3">{stats.data && stats.data.buckets.length ? <VolumeChart buckets={stats.data.buckets} /> : <div className="h-32" />}</div>
       </Panel>
 
-      <Panel title="Incoming transactions" action={<span className="text-xs text-muted">Click a row for the full explanation</span>}>
-        <TxTable items={feed.items} isFresh={feed.isFresh} onOpen={setOpen} empty="Waiting for traffic…" />
+      <Panel title="Incoming payments" action={<span className="text-xs text-muted">Open a line to see why it was stamped</span>}>
+        <TxTable items={feed.items} isFresh={feed.isFresh} onOpen={setOpen} empty={feed.connected ? "Waiting for the next payment…" : "Loading 60 days of card history and the last 20 minutes of payments…"} />
       </Panel>
       {open && <TxDrawer tx={open} onClose={() => setOpen(null)} />}
     </div>

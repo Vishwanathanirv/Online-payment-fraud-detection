@@ -48,11 +48,14 @@ All data is synthetic, so these numbers describe the simulator, not a real bank.
   - logistic regression trained with Adam
   - isolation forest
   - Platt calibration
-- **Exact explanations.** Every score is broken down with exact **TreeSHAP** (Lundberg et al., 2018), implemented from scratch and tested against brute-force Shapley values. Contributions add up exactly to the model's score, and come with plain-English reasons such as "6.2× this card's usual spend" or "This device paid with 5 other cards in the last 24 hours".
+- **Exact explanations.** Every score is broken down with exact **TreeSHAP** (Lundberg et al., 2018), implemented from scratch and tested against brute-force Shapley values. Contributions add up exactly to the model's score, and come with plain-English reasons such as "6.2× this card's usual spend" or "This device paid with 5 other cards in the last 24 hours". The drawer shows the strongest signals in both directions: what pushed risk up and what pulled it down. Risky payments are explained the moment they are scored; safe ones are explained when someone opens them, which is most of the work saved (TreeSHAP is about 70% of scoring time) and lets the demo open in about a second.
 - **Fraud-ring detection.** Cards and devices from the last six hours form a graph. Union–find joins cards linked through shared devices, and each group is scored by how densely cards are packed onto devices, how concentrated the money is on one merchant, and how much the model already flagged. Households (two cards on a family tablet) score zero. An analyst can block a ring, and every later payment from its devices is declined whatever card is used.
 - **Feedback loop with champion/challenger.** Analyst verdicts and chargebacks become training data. A challenger continues boosting from the live model (warm start: the old trees stay, new trees fix recent mistakes), is tested on later traffic it never saw at the **same alert workload** as the live model, and is promoted only if it ranks fraud better without catching less. Model versions are tracked.
 - **Online feature store.** 21 behavioural features per card and device: spending baselines, velocity, new device, new merchant or new category, distance from home, implied travel speed and time-of-day habits. The same code builds training data and scores live traffic, so there is **no training/serving skew**.
 - **Rules plus model.** Auditable business rules (impossible travel, card testing, high value on a new device, late-night crypto) run alongside the model. The isolation forest acts as a safety net for unseen patterns.
+- **Honest drift monitoring.** Population Stability Index per feature. Time-of-day features always shift in a window of a few minutes, and card-history features shift when the live system has seen less history than training, so those are reported as expected shifts with the reason rather than as false alarms; real drift is listed first.
+- **A realistic test customer.** The "Try a payment" page scores against six weeks of ordinary Chennai spending on one phone, so the examples behave as they would for a real card: groceries are approved, a skimmed card in Lagos is held (38× usual spend, implied travel at hundreds of km/h), late-night crypto and gift-card cash-outs are declined.
+- **A design of its own.** The dashboard looks like a bank's fraud desk: a live receipt tape that prints each payment, rubber-stamped APPROVED, HOLD or DECLINED, ledger totals and folder tabs, in light and dark.
 - **Live dashboard:**
   - real-time stream over server-sent events, with KPIs and per-minute volume
   - a case queue with analyst verdicts (confirm fraud or false alarm)
@@ -157,7 +160,8 @@ curl -s localhost:8080/api/score -H 'content-type: application/json' \
 
 ```bash
 npm run lint && npm run typecheck
-npm test        # 24 tests: metrics, models, features, simulator, training pipeline, API
+npm test        # 40 tests: metrics, models, features, simulator, drift, explanations, training pipeline, API
+npm run test:e2e  # browser tests on the demo build: every page, the live tape, example payments, drift
 ```
 
 The tests check behaviour, not just shapes. For example:
