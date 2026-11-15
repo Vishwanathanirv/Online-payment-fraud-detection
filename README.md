@@ -1,6 +1,5 @@
 # FraudLens · Real-time payment fraud detection
 
-> Built by [Vishwanathan R](https://vishwanathan.dev) · [Portfolio](https://vishwanathan.dev) · [Resume](https://vishwanathan.dev/resume.pdf)
 
 FraudLens scores every card payment in **under a millisecond**, explains **why** it flagged it, and gives analysts a live dashboard to review cases. It is built **end to end in TypeScript**:
 
@@ -189,4 +188,4 @@ TypeScript · Node.js 22 · Fastify · node:sqlite · Zod · React 19 · React R
 
 ## License
 
-MIT © Vishwanathan R
+MIT
