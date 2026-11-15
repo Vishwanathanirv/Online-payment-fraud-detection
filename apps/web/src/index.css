@@ -1,46 +1,74 @@
 @import "tailwindcss";
 
+/*
+ * FraudLens is a triage app: a queue of payments to judge, worked through with the keyboard
+ * like an email client built for speed. One violet accent for focus and selection; the three
+ * verdict colours (mint, amber, coral) only ever mean approve, hold and decline.
+ */
 :root {
-  /* "Night ledger": a bank's fraud desk. Cool ledger paper, carbon ink, rubber-stamp colours. */
-  --bg: #e6ebe9;
-  --panel: #f8f9f6;
-  --panel-2: #eef1ed;
-  --line: #d2d9d5;
-  --ink: #18212d;
-  --muted: #535e6b;
-  --faint: #86909b;
-  --accent: #2747a8;
+  --bg: #f3f4f9;
+  --panel: #ffffff;
+  --panel-2: #eef0f7;
+  --line: #e1e4ee;
+  --ink: #141726;
+  --muted: #545a72;
+  --faint: #8a8fa6;
+  --accent: #5b4cf0;
+  --accent-soft: rgba(91, 76, 240, 0.1);
   --accent-ink: #ffffff;
-  --ok: #1b7445;
-  --ok-soft: rgba(27, 116, 69, 0.1);
-  --warn: #9c5d06;
-  --warn-soft: rgba(156, 93, 6, 0.11);
-  --bad: #bf1e31;
-  --bad-soft: rgba(191, 30, 49, 0.09);
-  --rule-strong: #18212d;
+  --ok: #0f9d6b;
+  --ok-soft: rgba(15, 157, 107, 0.1);
+  --warn: #c27a00;
+  --warn-soft: rgba(194, 122, 0, 0.12);
+  --bad: #e0344f;
+  --bad-soft: rgba(224, 52, 79, 0.1);
+  --glass: rgba(255, 255, 255, 0.72);
+  --shadow: 0 1px 2px rgba(20, 23, 38, 0.06), 0 12px 32px -16px rgba(20, 23, 38, 0.22);
   color-scheme: light;
 }
-
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0e1217;
-    --panel: #161b22;
-    --panel-2: #1c232c;
-    --line: #29323d;
-    --ink: #e6eaef;
-    --muted: #9aa4b0;
-    --faint: #69747f;
-    --accent: #93a9ff;
-    --accent-ink: #0b1230;
-    --ok: #52c98c;
-    --ok-soft: rgba(82, 201, 140, 0.12);
-    --warn: #f0b24c;
-    --warn-soft: rgba(240, 178, 76, 0.12);
-    --bad: #ff6b7a;
-    --bad-soft: rgba(255, 107, 122, 0.12);
-    --rule-strong: #c9d1da;
+    --bg: #10121c;
+    --panel: #171a27;
+    --panel-2: #1e2233;
+    --line: #272c40;
+    --ink: #eceef7;
+    --muted: #a3a8c3;
+    --faint: #6d738f;
+    --accent: #9d92ff;
+    --accent-soft: rgba(157, 146, 255, 0.14);
+    --accent-ink: #120f33;
+    --ok: #3ddba3;
+    --ok-soft: rgba(61, 219, 163, 0.12);
+    --warn: #ffbd4a;
+    --warn-soft: rgba(255, 189, 74, 0.13);
+    --bad: #ff667f;
+    --bad-soft: rgba(255, 102, 127, 0.13);
+    --glass: rgba(23, 26, 39, 0.72);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 16px 40px -18px rgba(0, 0, 0, 0.8);
     color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+  --bg: #10121c;
+  --panel: #171a27;
+  --panel-2: #1e2233;
+  --line: #272c40;
+  --ink: #eceef7;
+  --muted: #a3a8c3;
+  --faint: #6d738f;
+  --accent: #9d92ff;
+  --accent-soft: rgba(157, 146, 255, 0.14);
+  --accent-ink: #120f33;
+  --ok: #3ddba3;
+  --ok-soft: rgba(61, 219, 163, 0.12);
+  --warn: #ffbd4a;
+  --warn-soft: rgba(255, 189, 74, 0.13);
+  --bad: #ff667f;
+  --bad-soft: rgba(255, 102, 127, 0.13);
+  --glass: rgba(23, 26, 39, 0.72);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 16px 40px -18px rgba(0, 0, 0, 0.8);
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -52,6 +80,7 @@
   --color-muted: var(--muted);
   --color-faint: var(--faint);
   --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
   --color-accent-ink: var(--accent-ink);
   --color-ok: var(--ok);
   --color-ok-soft: var(--ok-soft);
@@ -59,66 +88,66 @@
   --color-warn-soft: var(--warn-soft);
   --color-bad: var(--bad);
   --color-bad-soft: var(--bad-soft);
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Archivo Variable", "Inter Variable", ui-sans-serif, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-sans: "Mona Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Mona Sans Variable", ui-sans-serif, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
 }
 
 html,
 body,
 #root {
-  min-height: 100%;
+  height: 100%;
   background: var(--bg);
   color: var(--ink);
 }
 body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
-  font-feature-settings: "tnum", "cv11";
+  font-feature-settings: "tnum";
+  overflow: hidden;
+}
+::selection {
+  background: var(--accent-soft);
 }
 
 @layer components {
-  /* A sheet of ledger paper: square corners, ruled edge, a heavy rule under its title. */
   .panel {
     background: var(--panel);
     border: 1px solid var(--line);
-    border-radius: 3px;
-    box-shadow: 0 1px 0 var(--line), 0 10px 24px -22px rgba(0, 0, 0, 0.5);
+    border-radius: 14px;
   }
   .panel-head {
-    border-bottom: 2px solid var(--rule-strong);
+    border-bottom: 1px solid var(--line);
   }
+  /* Wide, heavy Mona Sans for headings and big figures. */
   .display {
     font-family: var(--font-display);
-    font-stretch: 78%;
-    letter-spacing: -0.01em;
+    font-stretch: 112%;
+    letter-spacing: -0.025em;
   }
   .label {
-    font-family: var(--font-display);
-    font-stretch: 85%;
     font-size: 12.5px;
-    letter-spacing: 0.01em;
     color: var(--muted);
-    font-weight: 500;
+    font-weight: 550;
   }
   .btn {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    height: 2.25rem;
-    padding: 0 0.95rem;
-    border-radius: 3px;
+    gap: 0.45rem;
+    height: 2.15rem;
+    padding: 0 0.85rem;
+    border-radius: 9px;
     font-size: 0.875rem;
     font-weight: 600;
-    border: 1.5px solid var(--ink);
-    background: transparent;
+    border: 1px solid var(--line);
+    background: var(--panel);
     color: var(--ink);
-    transition: background 0.15s, color 0.15s;
+    transition: background 0.12s, border-color 0.12s;
     cursor: pointer;
   }
   .btn:hover:not(:disabled) {
-    background: var(--ink);
-    color: var(--panel);
+    border-color: color-mix(in oklab, var(--accent) 45%, var(--line));
+    background: var(--panel-2);
   }
   .btn:disabled {
     opacity: 0.45;
@@ -130,73 +159,72 @@ body {
     color: var(--accent-ink);
   }
   .btn-accent:hover:not(:disabled) {
-    background: color-mix(in oklab, var(--accent) 85%, var(--ink));
-    color: var(--accent-ink);
+    background: color-mix(in oklab, var(--accent) 88%, var(--ink));
+    border-color: transparent;
   }
   .field {
     height: 2.25rem;
     width: 100%;
-    border-radius: 0;
-    border: 0;
-    border-bottom: 1.5px solid var(--faint);
-    background: transparent;
+    border-radius: 9px;
+    border: 1px solid var(--line);
+    background: var(--panel);
     color: var(--ink);
-    padding: 0 0.2rem;
-    font-size: 0.95rem;
-    font-family: var(--font-mono);
+    padding: 0 0.7rem;
+    font-size: 0.92rem;
   }
   .field:focus {
     outline: none;
-    border-bottom-color: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
   }
   textarea.field {
-    border: 1px solid var(--line);
-    background: var(--panel-2);
-    padding: 0.6rem;
+    height: auto;
+    padding: 0.6rem 0.7rem;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
   }
-  /* A rubber stamp: the decision, inked at a slight angle. */
+  /* The verdict as a soft pill with a dot. */
   .stamp {
-    display: inline-block;
-    padding: 1px 7px 0;
-    border: 2px solid currentColor;
-    border-radius: 3px;
-    font-family: var(--font-display);
-    font-stretch: 70%;
-    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.12rem 0.55rem 0.12rem 0.45rem;
+    border-radius: 999px;
     font-size: 12px;
-    letter-spacing: 0.08em;
-    line-height: 1.35;
-    transform: rotate(-3deg);
-    opacity: 0.9;
-    mix-blend-mode: multiply;
+    font-weight: 650;
+    background: color-mix(in oklab, currentColor 13%, transparent);
   }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) .stamp {
-      mix-blend-mode: normal;
-    }
+  .stamp::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: currentColor;
   }
-  /* Folder tabs for the main sections. */
-  .tab {
-    position: relative;
-    padding: 0.45rem 0.9rem 0.5rem;
-    border: 1px solid transparent;
-    border-bottom: 0;
-    border-radius: 6px 6px 0 0;
-    color: var(--muted);
-    font-family: var(--font-display);
-    font-stretch: 85%;
-    font-weight: 600;
-    font-size: 0.95rem;
-    white-space: nowrap;
-  }
-  .tab:hover {
-    color: var(--ink);
-  }
-  .tab-active {
+  .kbd {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.35rem;
+    height: 1.35rem;
+    padding: 0 0.3rem;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
     background: var(--panel);
-    border-color: var(--line);
-    color: var(--ink);
-    margin-bottom: -1px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .glass {
+    background: var(--glass);
+    backdrop-filter: blur(16px) saturate(1.4);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  }
+  .scroll-y {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
   }
 }
 
@@ -205,22 +233,28 @@ body {
   outline-offset: 2px;
 }
 
-/* New payments feed in from the top, like a till printing a receipt line. */
-@keyframes print {
+/* A new payment slides into the queue. */
+@keyframes slide-in {
   from {
-    clip-path: inset(0 0 100% 0);
-    background: color-mix(in oklab, var(--accent) 10%, transparent);
-  }
-  to {
-    clip-path: inset(0 0 0 0);
-    background: transparent;
+    transform: translateY(-6px);
+    opacity: 0;
   }
 }
 .row-new {
-  animation: print 0.6s ease-out;
+  animation: slide-in 0.35s ease-out;
+}
+@keyframes pop {
+  from {
+    transform: scale(0.97);
+    opacity: 0;
+  }
+}
+.pop {
+  animation: pop 0.16s ease-out;
 }
 @media (prefers-reduced-motion: reduce) {
-  .row-new {
+  .row-new,
+  .pop {
     animation: none;
   }
 }

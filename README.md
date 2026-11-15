@@ -8,7 +8,7 @@ FraudLens scores every card payment in **under a millisecond**, explains **why**
 - a streaming Node.js API
 - a React dashboard
 
-![Live monitoring](docs/screenshots/live.png)
+![Triage](docs/screenshots/live.png)
 
 > Version 2 is a full rebuild. The original Python and Streamlit version is kept on the [`v1-python`](https://github.com/Vishwanathanirv/online-payment-fraud-detection/tree/v1-python) branch.
 
@@ -55,10 +55,10 @@ All data is synthetic, so these numbers describe the simulator, not a real bank.
 - **Rules plus model.** Auditable business rules (impossible travel, card testing, high value on a new device, late-night crypto) run alongside the model. The isolation forest acts as a safety net for unseen patterns.
 - **Honest drift monitoring.** Population Stability Index per feature. Time-of-day features always shift in a window of a few minutes, and card-history features shift when the live system has seen less history than training, so those are reported as expected shifts with the reason rather than as false alarms; real drift is listed first.
 - **A realistic test customer.** The "Try a payment" page scores against six weeks of ordinary Chennai spending on one phone, so the examples behave as they would for a real card: groceries are approved, a skimmed card in Lagos is held (38× usual spend, implied travel at hundreds of km/h), late-night crypto and gift-card cash-outs are declined.
-- **A design of its own.** The dashboard looks like a bank's fraud desk: a live receipt tape that prints each payment, rubber-stamped APPROVED, HOLD or DECLINED, ledger totals and folder tabs, in light and dark.
-- **Live dashboard:**
-  - real-time stream over server-sent events, with KPIs and per-minute volume
-  - a case queue with analyst verdicts (confirm fraud or false alarm)
+- **A triage app, built for speed.** Analysts work through flagged payments like a fast email client: the queue on the left, the case in the middle, the desk's live numbers on the right. **F** marks fraud, **L** a false alarm, **J/K** move, and the next case opens by itself. A command menu (**Ctrl K**) searches payments and runs every action, and a session panel tracks decisions, time per case and agreement with the simulator's answer key. Light and dark, and it works on a phone.
+- **Live app:**
+  - real-time stream over server-sent events, with live desk numbers and per-minute volume
+  - keyboard-first triage with analyst verdicts (fraud or false alarm) that feed the next training run
   - a fraud-ring view with a live graph of cards, devices and merchants
   - the feedback loop: train a challenger, compare it with the live model, promote it
   - model report: PR and ROC curves, confusion matrix, feature importance, model comparison
@@ -70,7 +70,7 @@ All data is synthetic, so these numbers describe the simulator, not a real bank.
   - multi-stage Docker image with a health check
   - CI that tests, builds and smoke-tests the container
 
-| Case review with explanation | Model report |
+| Triage in light mode | Model report |
 | --- | --- |
 | ![Case detail](docs/screenshots/case-detail.png) | ![Model](docs/screenshots/model.png) |
 
@@ -161,7 +161,7 @@ curl -s localhost:8080/api/score -H 'content-type: application/json' \
 ```bash
 npm run lint && npm run typecheck
 npm test        # 40 tests: metrics, models, features, simulator, drift, explanations, training pipeline, API
-npm run test:e2e  # browser tests on the demo build: every page, the live tape, example payments, drift
+npm run test:e2e  # browser tests on the demo build: every view, keyboard triage, command menu, example payments, drift
 ```
 
 The tests check behaviour, not just shapes. For example:

@@ -55,7 +55,7 @@ export function Rings() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="display text-[2.4rem] font-extrabold leading-none">Fraud rings</h1>
+        <h1 className="display text-[2rem] font-bold leading-tight">Fraud rings</h1>
         <p className="mt-2 max-w-3xl text-[0.95rem] text-muted">
           One stolen card looks like a customer having an odd day. Many cards cashed out from the same phone look like a crew. Cards and devices from the last {data?.windowHours ?? 6} hours are joined into a graph, and every group of three or more cards linked
           through shared devices is scored.

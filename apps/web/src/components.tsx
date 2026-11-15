@@ -6,12 +6,11 @@ const DECISION_STYLE: Record<Decision, string> = {
   review: "text-warn",
   block: "text-bad",
 };
-/** What a fraud desk stamps on the slip. */
-const STAMP: Record<Decision, string> = { approve: "APPROVED", review: "HOLD", block: "DECLINED" };
+const STAMP: Record<Decision, string> = { approve: "Approved", review: "Held", block: "Declined" };
 
 export function DecisionBadge({ d }: { d: Decision }) {
   return (
-    <span className={`stamp ${DECISION_STYLE[d]} ${d === "approve" ? "opacity-60" : ""}`} aria-label={d}>
+    <span className={`stamp ${DECISION_STYLE[d]}`} aria-label={d}>
       {STAMP[d]}
     </span>
   );
@@ -32,15 +31,15 @@ export function RiskBar({ p, width = 72 }: { p: number; width?: number }) {
   );
 }
 
-/** One column of a ledger's totals line: a heavy rule, the figure, then what it counts. */
+/** A figure with what it counts underneath. */
 export function Kpi({ label, value, sub, tone }: { label: string; value: ReactNode; sub?: ReactNode; tone?: "ok" | "warn" | "bad" | "accent" }) {
   const color = tone ? `var(--${tone})` : undefined;
   return (
-    <div className="border-t-[3px] border-[var(--rule-strong)] pt-2.5">
-      <div className="font-mono text-[1.65rem] font-semibold leading-none tabular-nums tracking-tight" style={{ color }}>
+    <div className="rounded-[14px] border border-line bg-panel px-4 py-3">
+      <div className="label">{label}</div>
+      <div className="display mt-1 text-[1.5rem] font-bold leading-tight tabular-nums" style={{ color }}>
         {value}
       </div>
-      <div className="label mt-2 text-ink">{label}</div>
       {sub && <div className="mt-0.5 text-xs text-faint">{sub}</div>}
     </div>
   );
@@ -51,7 +50,7 @@ export function Panel({ title, action, children, className = "" }: { title?: Rea
     <section className={`panel ${className}`}>
       {(title || action) && (
         <div className="panel-head flex items-center justify-between gap-3 px-4 py-2.5">
-          <h2 className="display text-[1.05rem] font-semibold">{title}</h2>
+          <h2 className="text-[0.95rem] font-semibold">{title}</h2>
           {action}
         </div>
       )}
@@ -79,7 +78,7 @@ export function VolumeChart({ buckets: raw, minutes = 30 }: { buckets: { minute:
         const approve = b.total - b.review - b.block;
         return (
           <g key={b.minute}>
-            <rect x={i * 10 + 1} width={8} y={h - hy(approve)} height={hy(approve)} fill="var(--line)" />
+            <rect x={i * 10 + 1} width={8} y={h - hy(approve)} height={hy(approve)} fill="color-mix(in oklab, var(--faint) 45%, transparent)" />
             <rect x={i * 10 + 1} width={8} y={h - hy(approve) - hy(b.review)} height={hy(b.review)} fill="var(--warn)" />
             <rect x={i * 10 + 1} width={8} y={h - hy(approve) - hy(b.review) - hy(b.block)} height={hy(b.block)} fill="var(--bad)" />
           </g>
@@ -123,7 +122,7 @@ export function LineChart({ points, xLabel, yLabel, diagonal, area }: { points: 
 
 export function TxRow({ t, fresh, onOpen }: { t: Tx; fresh?: boolean; onOpen: (t: Tx) => void }) {
   return (
-    <tr className={`cursor-pointer border-t border-dashed border-line hover:bg-panel-2 ${fresh ? "row-new" : ""}`} onClick={() => onOpen(t)}>
+    <tr className={`cursor-pointer border-t border-line hover:bg-panel-2 ${fresh ? "row-new" : ""}`} onClick={() => onOpen(t)}>
       <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-faint">{time(t.ts)}</td>
       <td className="px-2 py-2.5 font-mono text-xs">{t.cardId}</td>
       <td className="hidden px-2 py-2.5 text-sm capitalize text-muted md:table-cell">{nice(t.category)}</td>

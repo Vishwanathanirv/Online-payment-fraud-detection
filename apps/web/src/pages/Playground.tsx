@@ -84,7 +84,7 @@ export function Playground() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="display text-[2.4rem] font-extrabold leading-none">Try a payment</h1>
+        <h1 className="display text-[2rem] font-bold leading-tight">Try a payment</h1>
         <p className="mt-2 text-[0.95rem] text-muted">Score a payment yourself, or upload a CSV batch. Nothing here is saved.</p>
       </div>
       <div className="flex flex-wrap gap-2">

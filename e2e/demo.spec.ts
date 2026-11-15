@@ -1,21 +1,42 @@
 import { expect, test } from "@playwright/test";
 
-test("every page opens without errors", async ({ page }) => {
+test("every view opens without errors", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  for (const [path, heading] of [["/", "The live tape"], ["/cases", "Case queue"], ["/rings", "Fraud rings"], ["/model", "Model performance"], ["/drift", "Data drift"], ["/try", "Try a payment"]]) {
+  for (const [path, heading] of [["/", "Triage"], ["/rings", "Fraud rings"], ["/model", "Model performance"], ["/drift", "Data drift"], ["/try", "Try a payment"]]) {
     await page.goto(path);
     await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
   }
   expect(errors).toEqual([]);
 });
 
-test("the live tape prints payments and explains one", async ({ page }) => {
+test("triage: judge payments with the keyboard and the queue moves on", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByText("Printing live")).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator("tbody tr").first()).toBeVisible();
-  await page.locator("tbody tr").first().click();
+  await expect(page.getByText("Live", { exact: true })).toBeVisible({ timeout: 30_000 });
+  const queue = page.getByRole("region", { name: "Queue" });
+  await expect(queue.locator("li button").first()).toBeVisible({ timeout: 30_000 });
+  const first = await page.getByRole("article").getAttribute("aria-label");
   await expect(page.getByText("Model explanation")).toBeVisible();
+  await page.keyboard.press("f");
+  await expect(page.getByRole("article")).not.toHaveAttribute("aria-label", first!);
+  await expect(page.getByText("1 decided this session")).toBeVisible();
+  await page.keyboard.press("l");
+  await expect(page.getByText("2 decided this session")).toBeVisible();
+  await page.keyboard.press("j");
+  await page.keyboard.press("k");
+});
+
+test("the command menu switches views and runs actions", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1, name: "Triage" })).toBeVisible();
+  await page.keyboard.press("Control+k");
+  await page.getByPlaceholder(/Search payments by card or ID/).fill("drift");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/drift$/);
+  await page.keyboard.press("5");
+  await expect(page.getByRole("heading", { level: 1, name: "Try a payment" })).toBeVisible();
+  await page.keyboard.press("?");
+  await expect(page.getByRole("dialog", { name: "Keyboard shortcuts" })).toBeVisible();
 });
 
 // The examples must behave the same whatever time it is when someone opens the page.

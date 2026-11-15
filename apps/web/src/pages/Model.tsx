@@ -14,7 +14,7 @@ export function Model() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="display text-[2.4rem] font-extrabold leading-none">Model performance</h1>
+        <h1 className="display text-[2rem] font-bold leading-tight">Model performance</h1>
         <p className="mt-2 text-[0.95rem] text-muted">
           Evaluated on the last {Math.round(r.data.days * 0.15)} days of data the model never saw ({r.data.test.toLocaleString("en-IN")} transactions, {r.data.testFraud} fraud). Model{" "}
           <span className="font-mono text-xs">{data.version}</span>, {data.trees} trees, explained with {data.explainer ?? "TreeSHAP"}.

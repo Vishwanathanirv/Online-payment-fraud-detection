@@ -10,7 +10,7 @@ export function DriftPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="display text-[2.4rem] font-extrabold leading-none">Data drift</h1>
+        <h1 className="display text-[2rem] font-bold leading-tight">Data drift</h1>
         <p className="mt-2 max-w-2xl text-[0.95rem] text-muted">
           Compares live traffic with the data the model was trained on, using the Population Stability Index (PSI). When features drift, the model's accuracy quietly drops, so this is the signal to retrain.
         </p>
