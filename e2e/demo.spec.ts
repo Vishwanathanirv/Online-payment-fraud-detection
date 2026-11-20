@@ -163,6 +163,27 @@ test("the desk's ring board object opens it already playing", async ({ page }) =
   await expect(page.getByText("RING · 1 CASE")).toHaveCount(3, { timeout: 8000 });
 });
 
+/* ───────────── how it works */
+
+test("how it works follows one real payment through all five steps", async ({ page }) => {
+  await page.goto("/how");
+  await expect(page.getByText("€1,504.93")).toBeVisible();
+  await expect(page.getByText(/\d+ of 30/)).toBeVisible();
+  await page.getByRole("button", { name: /Next: The score/ }).click();
+  await expect(page.getByText("Trees counted · 141 of 141")).toBeVisible({ timeout: 8000 });
+  await expect(page.getByText("96.0%").first()).toBeVisible();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("heading", { name: "The reasons" })).toBeVisible();
+  await expect(page.getByText(/Component V\d+/).first()).toBeVisible();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByText("the public data has no card or device ids")).toBeVisible();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByText("Declined", { exact: true })).toBeVisible();
+  await expect(page.getByText(/it would have been let through if/)).toBeVisible();
+  await page.getByRole("button", { name: "Open its case file →" }).click();
+  await expect(page).toHaveURL(/\/case\/21322#/);
+});
+
 /* ───────────── the ledger */
 
 test("loads the real test window with the cheapest policy", async ({ page }) => {
@@ -258,7 +279,7 @@ test("settings travel in the link", async ({ page }) => {
 
 test("on a phone nothing scrolls sideways, in any scene", async ({ browser }) => {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
-  for (const path of ["/", "/dial", "/case/fraud", "/rings/unmask", "/ledger"]) {
+  for (const path of ["/", "/dial", "/case/fraud", "/rings/unmask", "/how", "/ledger"]) {
     await page.goto(path);
     await expect(page.locator("h1")).toBeVisible();
     await page.waitForTimeout(300);

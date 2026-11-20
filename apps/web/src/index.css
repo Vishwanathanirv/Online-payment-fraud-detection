@@ -460,3 +460,16 @@ body {
     scale: 0.6;
   }
 }
+
+.bar-rise {
+  animation: arrive 0.5s var(--ease-out) both;
+}
+.bar-grow {
+  transform-origin: left;
+  animation: grow 0.7s var(--spring) both;
+}
+@keyframes grow {
+  from {
+    transform: scaleX(0);
+  }
+}
