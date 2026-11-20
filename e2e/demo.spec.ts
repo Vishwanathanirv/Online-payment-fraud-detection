@@ -86,5 +86,8 @@ for (const at of ["2026-11-15T03:00:00", "2026-11-15T14:30:00", "2026-11-15T21:3
 
 test("drift explains expected shifts instead of raising false alarms", async ({ page }) => {
   await page.goto("/drift");
-  await expect(page.getByText(/Expected shift: follows the clock/).first()).toBeVisible({ timeout: 30_000 });
+  // Which features shift "as expected" depends on the hour the test runs: the clock features only
+  // move when the live window's time of day differs from training. The demo's cards always have
+  // less history than the training set, so that reason is present at any hour.
+  await expect(page.getByText(/Expected shift: cards here have \d+ days of history; the model trained on 90/).first()).toBeVisible({ timeout: 30_000 });
 });
