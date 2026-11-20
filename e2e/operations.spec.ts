@@ -129,3 +129,10 @@ test("models compete at their own cheapest lines, and one click switches", async
   await s.getByRole("button", { name: "Use" }).first().click();
   await expect(s.getByText("in use")).toHaveCount(1);
 });
+
+test("drift compares the earlier and later half", async ({ page }) => {
+  await page.goto("/");
+  const s = page.locator("#drift");
+  await expect(s).toContainText("between the earlier and later half");
+  await expect(s.getByRole("row")).toHaveCount(7);
+});

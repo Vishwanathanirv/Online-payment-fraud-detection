@@ -5,6 +5,8 @@ import type { Dataset } from "./engine/dataset";
 import { DISPUTE_FIELDS, DISPUTES_TEMPLATE, guessDisputeMapping, joinDisputes, type DisputeMapping } from "./engine/disputes";
 import { calibration } from "./engine/calibration";
 import { compareModels } from "./engine/compare";
+import { drift, type Half } from "./engine/drift";
+import { timeLabel } from "./charts";
 import { HORIZON_DAYS, type MaturityState } from "./engine/maturity";
 import { looksCnp, mcStatus, monitor, visaStatus, type Limits, type Side, type Status } from "./engine/monitor";
 import type { Costs, Outcome, Staffing, Thresholds } from "./engine/policy";
@@ -599,6 +601,52 @@ export function CompareModule({ d, costs, staffing, force, model, setModel }: { 
         Each model at its own cheapest lines, with your costs, team and the rules in the policy.
         {r.disagree !== null && ` At those lines the two decide ${r.disagree.toLocaleString("en")} payments differently.`}
       </p>
+    </div>
+  );
+}
+
+/* ───────────── drift */
+
+export function DriftModule({ d, model, th, costs, staffing, force }: { d: Dataset; model: string; th: Thresholds; costs: Costs; staffing: Staffing; force?: Uint8Array }) {
+  const m = useMoney();
+  const r = useMemo(() => drift(d, model, th, costs, staffing, force), [d, model, th, costs, staffing, force]);
+  if (!r) return <p className="prose-note max-w-2xl text-[16px]">Too few payments to split.</p>;
+  const tone = r.reading === "shifted" ? "text-lost" : r.reading === "moving" ? "text-declined" : "text-stopped";
+  const when = (h: { from: number; to: number }) => `${timeLabel(d, h.from)} – ${timeLabel(d, h.to)}`;
+  const rows: [string, (h: Half) => string][] = [
+    ["Payments", (h) => h.payments.toLocaleString("en")],
+    ["Fraud rate", (h) => pct(h.fraudRate, 3)],
+    ["Average amount", (h) => m.fmt(h.meanAmount * m.k, 2)],
+    ["Fraud stopped", (h) => pct(h.stoppedShare, 0)],
+    ["Genuine declined", (h) => pct(h.declineRate, 3)],
+    ["Sent to review", (h) => pct(h.reviewRate, 2)],
+  ];
+  return (
+    <div className="space-y-10">
+      <p className="max-w-3xl font-serif text-[clamp(1.5rem,2.6vw,2rem)] leading-snug">
+        Scores are <span className={tone}>{r.reading}</span> between the earlier and later half: stability index {r.psi.toFixed(3)}.
+      </p>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[32rem] max-w-3xl text-[15px]">
+          <thead>
+            <tr className="eyebrow text-left">
+              <th className="pb-3 font-normal" />
+              <th className="pb-3 text-right font-normal">Earlier · {when(r.early)}</th>
+              <th className="pb-3 text-right font-normal">Later · {when(r.late)}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(([label, f]) => (
+              <tr key={label} className="border-t border-rule-soft">
+                <td className="py-3 text-ash">{label}</td>
+                <td className="figure py-3 text-right">{f(r.early)}</td>
+                <td className="figure py-3 text-right">{f(r.late)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-[13px] text-smoke">Split at the middle payment by time. Population stability index over the earlier half's score deciles: under 0.1 steady, 0.1–0.25 moving, over 0.25 shifted. Same lines, team and rules in both halves.</p>
     </div>
   );
 }

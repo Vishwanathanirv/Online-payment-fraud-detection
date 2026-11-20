@@ -13,7 +13,7 @@ import { maturity, matureCut } from "./engine/maturity";
 import { DEFAULT_LIMITS, type Limits } from "./engine/monitor";
 import { compiles, forceOf, scoreField, type Rule } from "./engine/rules";
 import { decisionRecord } from "./engine/record";
-import { CalibrationModule, CompareModule, MaturityModule, MonitorModule, RulesModule } from "./operations";
+import { CalibrationModule, CompareModule, DriftModule, MaturityModule, MonitorModule, RulesModule } from "./operations";
 import { currencyList, loadRates, moneyFormat, niceStep, rateBetween, type Rates } from "./engine/money";
 import { cheapest, DEFAULT_COSTS, DEFAULT_STAFFING, evaluate, type Costs, type Outcome, type Staffing, type Thresholds } from "./engine/policy";
 import { dimensions, segment, type Dimension } from "./engine/segments";
@@ -446,6 +446,7 @@ const NAV = [
   ["#disputes", "Disputes"],
   ["#calibration", "Calibration"],
   ["#models", "Models"],
+  ["#drift", "Drift"],
   ["#data", "Your data"],
   ["#method", "Method"],
 ] as const;
@@ -651,6 +652,10 @@ function App() {
 
           <Section id="calibration" kicker="Calibration" title="Does the score mean what it says?">
             <CalibrationModule d={d} model={model} />
+          </Section>
+
+          <Section id="drift" kicker="Drift" title="Has anything moved?">
+            <DriftModule d={d} model={model} th={th} costs={costs} staffing={staffing} force={force} />
           </Section>
 
           {d.models.length > 1 && (

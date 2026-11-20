@@ -380,3 +380,20 @@ describe("champion and challenger", () => {
     expect(r.disagree).toBeGreaterThan(0);
   });
 });
+
+describe("drift", () => {
+  it("reads the same scores as steady and moved scores as shifted", async () => {
+    const { psi, drift } = await import("../src/engine/drift");
+    const a = Array.from({ length: 1000 }, (_, k) => k / 1000);
+    expect(psi(a, a)).toBeCloseTo(0, 5);
+    expect(psi(a, a.map((v) => v * 0.3))).toBeGreaterThan(0.25);
+    const rows: Row[] = [];
+    for (let k = 0; k < 400; k++) rows.push({ t: k * 60, a: k < 200 ? 10 : 30, s: k < 200 ? (k % 100) / 100 : 0.9 + (k % 10) / 100, f: k % 50 === 0 ? 1 : 0 });
+    const r = drift(ds(rows), "own", { block: 0.95, review: 0.8 }, costs, ample)!;
+    expect(r.reading).toBe("shifted");
+    expect(r.early.meanAmount).toBe(10);
+    expect(r.late.meanAmount).toBe(30);
+    expect(r.late.reviewRate).toBeGreaterThan(r.early.reviewRate);
+    expect(r.early.payments + r.late.payments).toBe(400);
+  });
+});
