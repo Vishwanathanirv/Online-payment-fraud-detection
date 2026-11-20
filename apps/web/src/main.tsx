@@ -440,6 +440,9 @@ const NAV = [
   ["#staffing", "Staffing"],
   ["#segments", "Segments"],
   ["#cases", "Cases"],
+  ["#rules", "Rules"],
+  ["#labels", "Labels"],
+  ["#disputes", "Disputes"],
   ["#data", "Your data"],
   ["#method", "Method"],
 ] as const;
@@ -455,22 +458,39 @@ function App() {
   const [costs, setCosts] = useState<Costs>(init.costs ?? DEFAULT_COSTS);
   const [staffing, setStaffing] = useState<Staffing>(init.staffing ?? DEFAULT_STAFFING);
   const [th, setTh] = useState<Thresholds | null>(null);
+  const [ruleState, setRules] = useState<Rule[] | null>(init.rules ?? null);
+  const [limits, setLimits] = useState<Limits>(init.limits ?? DEFAULT_LIMITS);
+  const [mature, setMature] = useState(init.mature ?? false);
+  // After a disputes join, the lines are re-tuned on the data shown (the mature part, if that is on).
+  const [retune, setRetune] = useState(false);
   useEffect(() => {
     loadPublic().then(setPub, (e: Error) => setError(e.message));
     loadRates().then(setRates, () => setRates(null));
   }, []);
 
-  const d = own?.d ?? pub;
+  const base = own?.d ?? pub;
+  const mat = useMemo(() => (base ? maturity(base) : null), [base]);
+  // With maturity on, every section judges only payments old enough for their reports to be in.
+  const d = useMemo(() => (base && mature && mat?.ok ? subset(base, (i) => base.t[i] <= matureCut(mat.m)) : base), [base, mature, mat]);
+  // Until a rule is written, one example shows the backtester working on whatever data is open.
+  const rules = useMemo<Rule[]>(() => ruleState ?? (d ? [{ x: `amount >= 500 and ${scoreField(d.models[0])} >= 0.05`, a: "review", on: false }] : []), [ruleState, d]);
+  // Typing in a rule that is in the policy recomputes every section, so that waits for a pause.
+  const settledRules = useDeferredValue(rules);
+  const force = useMemo(() => (d ? forceOf(d, settledRules) : undefined), [d, settledRules]);
   useEffect(() => {
-    if (d && !th) setTh(cheapest(d, d.models.includes(model) ? model : d.models[0], costs));
-  }, [d, th, model, costs]);
-  useEffect(() => writeHash({ costs, staffing, view }), [costs, staffing, view]);
+    if (d && (!th || retune)) {
+      setTh(cheapest(d, d.models.includes(model) ? model : d.models[0], costs));
+      setRetune(false);
+    }
+  }, [d, th, model, costs, retune]);
+  useEffect(() => writeHash({ costs, staffing, view, rules: ruleState ?? [], limits, mature }), [costs, staffing, view, ruleState, limits, mature]);
 
   const k = d ? rateBetween(rates, d.currency, view) : 1;
   const money = useMemo<Money>(() => ({ view, k, fmt: moneyFormat(view) }), [view, k]);
   const sum = useMemo(() => (d ? totals(d) : null), [d]);
-  const o = useMemo(() => (d && th ? evaluate(d, model, th, costs, staffing) : null), [d, th, model, costs, staffing]);
+  const o = useMemo(() => (d && th ? evaluate(d, model, th, costs, staffing, force) : null), [d, th, model, costs, staffing, force]);
   const requests = useRequestsSince(own?.at ?? null);
+  const live = d ? settledRules.filter((r) => r.on && compiles(d, r.x)).length : 0;
 
   const switchData = (next: Dataset | null, note: string | null = null) => {
     const target = next ?? pub!;
@@ -480,7 +500,14 @@ function App() {
     setTh(cheapest(target, target.models[0], c));
     setOwn(next ? { d: next, at: performance.now(), note } : null);
     setView(target.currency);
+    setMature(false);
     document.getElementById("overview")?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Disputes joined onto the open file: same file, same privacy clock, new labels.
+  const joinData = (next: Dataset, note: string) => {
+    setOwn((prev) => (prev ? { ...prev, d: next, note } : prev));
+    setRetune(true);
   };
 
   if (error) return <p className="mx-auto max-w-xl px-6 py-32 text-ash">{error}</p>;
@@ -544,7 +571,11 @@ function App() {
 
         <main className="min-w-0">
           <section id="overview" className="arrive scroll-mt-20 pb-20 pt-20 md:pt-28">
-            <p className="eyebrow">{d.kind === "public" ? "ULB / Worldline · real card payments · test window" : `Your file · ${d.currency}`}</p>
+            <p className="eyebrow">
+              {d.kind === "public" ? "ULB / Worldline · real card payments · test window" : `Your file · ${d.currency}`}
+              {mature && mat?.ok && ` · payments older than ${mat.m.matureAfter} days`}
+              {live > 0 && ` · ${live} ${live === 1 ? "rule" : "rules"} in the policy`}
+            </p>
             <h1 className="mt-6 max-w-[20ch] font-serif text-[clamp(2.2rem,5vw,4.2rem)] leading-[1.06] tracking-[-0.015em]">
               Stops <Amount v={o.fraud.stoppedAmt} className="text-stopped" serif /> of <Amount v={sum.fraudAmt} serif /> fraud. Saves <Amount v={saved} serif /> against no screening.
             </h1>
@@ -574,11 +605,11 @@ function App() {
           </section>
 
           <Section id="thresholds" kicker="Thresholds" title="Where to draw the lines.">
-            <ThresholdsModule d={d} model={model} th={th} setTh={setTh} costs={costs} setCosts={setCosts} staffing={staffing} o={o} />
+            <ThresholdsModule d={d} model={model} th={th} setTh={setTh} costs={costs} setCosts={setCosts} staffing={staffing} o={o} force={force} />
           </Section>
 
           <Section id="staffing" kicker="Staffing" title="Can the team keep up?">
-            <StaffingModule d={d} model={model} th={th} costs={costs} staffing={staffing} setStaffing={setStaffing} o={o} />
+            <StaffingModule d={d} model={model} th={th} costs={costs} staffing={staffing} setStaffing={setStaffing} o={o} force={force} />
           </Section>
 
           <Section id="segments" kicker="Segments" title="Where the fraud is.">
@@ -587,6 +618,18 @@ function App() {
 
           <Section id="cases" kicker="Cases" title="Everything the policy touched.">
             <Cases d={d} model={model} o={o} />
+          </Section>
+
+          <Section id="rules" kicker="Rules" title="Test a rule on history first.">
+            <RulesModule d={d} model={model} th={th} costs={costs} staffing={staffing} rules={rules} setRules={setRules} />
+          </Section>
+
+          <Section id="labels" kicker="Labels" title="Recent fraud isn't reported yet.">
+            <MaturityModule base={base!} st={mat!} mature={mature} setMature={setMature} onJoin={joinData} />
+          </Section>
+
+          <Section id="disputes" kicker="Disputes" title="Against the card networks' limits.">
+            <MonitorModule key={`${d.name}:${d.kind}`} d={d} o={o} limits={limits} setLimits={setLimits} />
           </Section>
 
           <Section id="data" kicker="Your data" title="Run it on your own transactions.">
@@ -599,7 +642,8 @@ function App() {
                 <li>Block at or above the block line. Review between the lines. Approve below.</li>
                 <li>Reviews queue as they arrive. Each analyst takes one at a time. A review not started before the timeout is approved.</li>
                 <li>A reviewed fraud is stopped. A declined genuine payment costs the decline share of its amount.</li>
-                <li>Cheapest: the lowest total cost over every pair of lines, with every review done. The capacity version caps reviews at what the team can handle.</li>
+                <li>Cheapest: the lowest total cost over every pair of lines, with every review done. The capacity version caps reviews at what the team can handle. Found on the score alone; rules in the policy apply on top.</li>
+                <li>A rule's effect: the whole policy run with and without it, queue included. Block rules win over review rules; neither lowers what the score decided.</li>
                 <li>
                   Public data: {bench.dataset.rows.toLocaleString("en")} card payments, September 2013, {bench.dataset.licence}. Split by time; no model saw the last 20%, shown here. Calibration error {bench.calibration.eceAfter.toFixed(4)}.
                 </li>
