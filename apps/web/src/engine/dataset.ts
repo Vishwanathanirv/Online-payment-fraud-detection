@@ -25,8 +25,6 @@ export type Dataset = {
   id?: string[];
   /** TreeSHAP factors for the riskiest public payments, by row. */
   why: Record<string, [number, number][]>;
-  /** The model inputs of every explained public payment, by row: what case files ask "what if" of. */
-  x?: Record<string, number[]>;
   features: string[];
 };
 
@@ -42,7 +40,7 @@ export const CAT_LABEL: Record<CatField, string> = {
   decision: "Decision",
 };
 
-type Replay = { features: string[]; models: string[]; t: number[]; amount: number[]; fraud: (0 | 1)[]; score: number[][]; why: Record<string, [number, number][]>; x: Record<string, number[]> };
+type Replay = { features: string[]; models: string[]; t: number[]; amount: number[]; fraud: (0 | 1)[]; score: number[][]; why: Record<string, [number, number][]> };
 
 const PUBLIC_NAMES: Record<string, string> = { gbdt: "Gradient-boosted trees", logreg: "Logistic regression", iforest: "Isolation forest" };
 
@@ -67,7 +65,6 @@ export function loadPublic(): Promise<Dataset> {
       probabilities: Object.fromEntries(r.models.map((m) => [m, true])),
       cats: {},
       why: r.why,
-      x: r.x,
       features: r.features,
     }));
   return pending;

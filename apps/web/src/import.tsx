@@ -130,7 +130,7 @@ export function Import({ current, rates, onLoad, onReset }: { current: Dataset; 
     <div>
       {!table && (
         <div
-          className={`border border-dashed px-6 py-14 text-center transition-colors ${over ? "border-bone bg-desk-2" : "border-rule"}`}
+          className={`border border-dashed px-6 py-14 text-center transition-colors ${over ? "border-bone bg-ground-2" : "border-rule"}`}
           onDragOver={(e) => {
             e.preventDefault();
             setOver(true);
@@ -143,7 +143,7 @@ export function Import({ current, rates, onLoad, onReset }: { current: Dataset; 
             if (f) void open(f);
           }}
         >
-          <p className="display text-[1.6rem] !leading-snug">{busy ?? "Drop a CSV of scored, labelled transactions."}</p>
+          <p className="font-serif text-[1.6rem] leading-snug">{busy ?? "Drop a CSV of scored, labelled transactions."}</p>
           <div className="mt-6 flex flex-wrap justify-center gap-x-8 gap-y-3 text-[15px]">
             <button className="link" onClick={() => input.current?.click()}>
               Choose a file
@@ -195,7 +195,7 @@ export function Import({ current, rates, onLoad, onReset }: { current: Dataset; 
             </tbody>
           </table>
           <div className="mt-8 flex flex-wrap gap-x-8 gap-y-3 text-[15px]">
-            <button className="rounded-full bg-lamp px-5 py-2 font-medium text-ink transition-transform active:scale-95" onClick={analyse}>
+            <button className="rounded-full bg-bone px-5 py-2 font-medium text-ground hover:bg-ash" onClick={analyse}>
               Analyse
             </button>
             <button className="link" onClick={() => setTable(null)}>
