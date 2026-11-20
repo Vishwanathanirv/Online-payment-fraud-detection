@@ -73,7 +73,7 @@ export default function DeskScene() {
           <DeskObject path="/case/fraud" go={go} k="C" name="Case file" blurb="One real payment: why the model flagged it, and the smallest change that would have cleared it. Share it as a link or an image." className="md:col-span-4" tilt={1.2}>
             <FolderArt />
           </DeskObject>
-          <DeskObject path="/rings/unmask" go={go} k="R" name="Ring board" blurb="Fifteen alerts, three crews. Watch the red string find them." className="md:col-span-3" tilt={-1.4}>
+          <DeskObject path="/rings/unmask" go={go} k="R" name="Ring board" blurb="33 alerts in six hours. Watch the red string find the three crews behind 24 of them." className="md:col-span-3" tilt={-1.4}>
             <CorkArt />
           </DeskObject>
           <DeskObject path="/how" go={go} k="H" name="How it works" blurb="Follow one real payment: its inputs, the trees' vote, the reasons, the ring check, the decision." className="md:col-span-7" tilt={0.4}>

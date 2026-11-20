@@ -139,6 +139,30 @@ test("a case file shares as a link that reopens it, and as an image", async ({ p
   await expect(other.locator("article")).toHaveAttribute("aria-label", number);
 });
 
+/* ───────────── the ring board */
+
+test("the ring board unmasks rings from separate alerts, and leaves households alone", async ({ page }) => {
+  await page.goto("/rings");
+  await expect(page.locator("h1")).toContainText("33 alerts.");
+  await expect(page.getByText(/^Phone D/)).toHaveCount(0);
+  await page.getByRole("button", { name: /Unmask the rings/ }).click();
+  await expect(page.getByText(/^Phone D/)).toHaveCount(3);
+  await expect(page.locator("h1")).toContainText("24 of them are 3 rings.", { timeout: 8000 });
+  await expect(page.getByText("RING · 1 CASE")).toHaveCount(3);
+  await expect(page.getByText("Household · left alone")).toHaveCount(2);
+  await page.getByRole("button", { name: "1. Alerts" }).click();
+  await expect(page.locator("h1")).toContainText("33 alerts.");
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("button", { name: "2. Shared devices" })).toHaveAttribute("aria-current", "step");
+});
+
+test("the desk's ring board object opens it already playing", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: /^Ring board/ }).click();
+  await expect(page).toHaveURL(/\/rings\/unmask/);
+  await expect(page.getByText("RING · 1 CASE")).toHaveCount(3, { timeout: 8000 });
+});
+
 /* ───────────── the ledger */
 
 test("loads the real test window with the cheapest policy", async ({ page }) => {
@@ -234,7 +258,7 @@ test("settings travel in the link", async ({ page }) => {
 
 test("on a phone nothing scrolls sideways, in any scene", async ({ browser }) => {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
-  for (const path of ["/", "/dial", "/case/fraud", "/ledger"]) {
+  for (const path of ["/", "/dial", "/case/fraud", "/rings/unmask", "/ledger"]) {
     await page.goto(path);
     await expect(page.locator("h1")).toBeVisible();
     await page.waitForTimeout(300);
