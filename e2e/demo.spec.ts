@@ -18,7 +18,7 @@ test("moving the review line changes the bands and the cost", async ({ page }) =
   const t = page.locator("#thresholds");
   await t.scrollIntoViewIfNeeded();
   const reviewRow = t.locator("tbody tr").nth(1);
-  const before = await reviewRow.innerText();
+  const before = (await reviewRow.textContent()) ?? "";
   await t.getByRole("button", { name: "Lower: review line" }).click();
   await t.getByRole("button", { name: "Lower: review line" }).click();
   await expect(reviewRow).not.toHaveText(before);
