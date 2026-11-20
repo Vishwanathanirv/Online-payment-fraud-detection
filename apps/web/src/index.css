@@ -1,387 +1,165 @@
 @import "tailwindcss";
 
 /*
- * FraudLens is an investigator's case desk. Every flagged payment is a case file on the desk:
- * the model's evidence is laid out as exhibits, and the analyst closes the case with a rubber
- * stamp, on a graphite desk under a lamp.
- *
- * Colour has one job each: ink blue is focus and selection; stamp red, ledger green and ochre
- * only ever mean fraud / declined, cleared / approved and held. Manila marks case tabs.
+ * FraudLens reads like a research note, not a dashboard: one long page, hairline rules instead of
+ * boxes, a serif for statements, tabular mono for every figure. Colour is a signal, never decoration:
+ * verdigris is money stopped, vermilion is money lost, bone is everything else.
  */
 :root {
-  --bg: #0d0f13;
-  --desk: #111318;
-  --panel: #171a20;
-  --panel-2: #1d2027;
-  --line: #2a2e37;
-  --line-strong: #3b404b;
-  --ink: #eee9dc;
-  --muted: #b0a998;
-  --faint: #9a9484;
-  --accent: #93a6ff;
-  --accent-soft: rgba(147, 166, 255, 0.13);
-  --accent-ink: #0d1233;
-  --ok: #57d69c;
-  --ok-soft: rgba(87, 214, 156, 0.12);
-  --warn: #f0b54f;
-  --warn-soft: rgba(240, 181, 79, 0.13);
-  --bad: #ff7466;
-  --bad-soft: rgba(255, 116, 102, 0.13);
-  --manila: #3b3320;
-  --manila-ink: #f1dfa8;
-  --glass: rgba(17, 19, 24, 0.82);
-  --shadow: 0 1px 0 rgba(0, 0, 0, 0.5), 0 24px 48px -30px rgba(0, 0, 0, 0.9);
+  --ground: #101112;
+  --ground-2: #16171a;
+  --rule: #2a2b2f;
+  --rule-soft: #1e1f22;
+  --bone: #ebe6dc;
+  --ash: #a29d94;
+  --smoke: #6f6b65;
+  --stopped: #5fb7a5;
+  --lost: #e0583f;
+  --lost-soft: rgba(224, 88, 63, 0.14);
+  --stopped-soft: rgba(95, 183, 165, 0.14);
+  --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+  --sans: "Hanken Grotesk Variable", "Hanken Grotesk", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
   color-scheme: dark;
-  /* Shared by both palettes before the theme switch was removed. */
-  --spring: linear(0, 0.006, 0.025 2.8%, 0.101 6.1%, 0.539 18.9%, 0.721 25.3%, 0.849 31.5%, 0.937 38.1%, 0.968 41.8%, 0.991 45.7%, 1.006 50.1%, 1.015 55%, 1.017 63.9%, 1.001 85.9%, 1);
 }
 
 @theme inline {
-  --color-bg: var(--bg);
-  --color-desk: var(--desk);
-  --color-panel: var(--panel);
-  --color-panel-2: var(--panel-2);
-  --color-line: var(--line);
-  --color-line-strong: var(--line-strong);
-  --color-ink: var(--ink);
-  --color-muted: var(--muted);
-  --color-faint: var(--faint);
-  --color-accent: var(--accent);
-  --color-accent-soft: var(--accent-soft);
-  --color-accent-ink: var(--accent-ink);
-  --color-ok: var(--ok);
-  --color-ok-soft: var(--ok-soft);
-  --color-warn: var(--warn);
-  --color-warn-soft: var(--warn-soft);
-  --color-bad: var(--bad);
-  --color-bad-soft: var(--bad-soft);
-  --color-manila: var(--manila);
-  --color-manila-ink: var(--manila-ink);
-  --font-sans: "Mona Sans Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Fraunces Variable", ui-serif, Georgia, serif;
-  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+  --color-ground: var(--ground);
+  --color-ground-2: var(--ground-2);
+  --color-rule: var(--rule);
+  --color-bone: var(--bone);
+  --color-ash: var(--ash);
+  --color-smoke: var(--smoke);
+  --color-stopped: var(--stopped);
+  --color-lost: var(--lost);
+  --font-serif: var(--serif);
+  --font-sans: var(--sans);
+  --font-mono: var(--mono);
 }
 
-html,
-body,
-#root {
-  height: 100%;
-  background: var(--bg);
-  color: var(--ink);
+html {
+  background: var(--ground);
+  color: var(--bone);
+  scroll-behavior: smooth;
 }
 body {
-  font-family: var(--font-sans);
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
-  font-feature-settings: "tnum";
-  overflow: hidden;
+  text-rendering: optimizeLegibility;
 }
 ::selection {
-  background: var(--accent-soft);
+  background: var(--stopped-soft);
 }
-
-/* Type scale: a 1.25 ratio, fluid at the top end. */
-@layer base {
-  h1,
-  h2,
-  h3 {
-    text-wrap: balance;
-  }
-  p {
-    text-wrap: pretty;
-  }
-}
-
-@layer components {
-  /* A dossier section: a ruled top edge and a small-caps label, not a boxed card. */
-  .panel {
-    border-top: 1.5px solid var(--ink);
-    container-type: inline-size;
-  }
-  .panel-head {
-    border-bottom: 1px solid var(--line);
-  }
-  .sheet {
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 4px;
-  }
-  /* A file with two sheets peeking out underneath it. */
-  .file {
-    position: relative;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 3px 3px 4px 4px;
-    box-shadow:
-      0 3px 0 -1px var(--panel-2),
-      0 3px 0 0 var(--line),
-      0 7px 0 -1px var(--panel-2),
-      0 7px 0 0 var(--line);
-  }
-  /* Serif for the record: amounts, headlines, case numbers. */
-  .display {
-    font-family: var(--font-display);
-    font-optical-sizing: auto;
-    font-variation-settings: "SOFT" 30, "WONK" 0;
-    letter-spacing: -0.02em;
-  }
-  .label {
-    font-size: 11px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--muted);
-    font-weight: 620;
-  }
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    min-height: 2.5rem;
-    padding: 0 0.95rem;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    font-weight: 600;
-    border: 1px solid var(--line-strong);
-    background: var(--panel);
-    color: var(--ink);
-    transition:
-      background 0.12s,
-      border-color 0.12s,
-      transform 0.18s var(--spring);
-    cursor: pointer;
-    touch-action: manipulation;
-  }
-  .btn:hover:not(:disabled) {
-    border-color: var(--ink);
-  }
-  .btn:active:not(:disabled) {
-    transform: translateY(1px) scale(0.98);
-  }
-  .btn:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-  .btn-accent {
-    background: var(--ink);
-    border-color: var(--ink);
-    color: var(--panel);
-  }
-  .btn-accent:hover:not(:disabled) {
-    background: color-mix(in oklab, var(--ink) 85%, var(--accent));
-  }
-  .field {
-    min-height: 2.5rem;
-    width: 100%;
-    border-radius: 0;
-    border: 0;
-    border-bottom: 1.5px solid var(--line-strong);
-    background: transparent;
-    color: var(--ink);
-    padding: 0 0.15rem;
-    font-size: 1rem;
-  }
-  .field:focus {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 1.5px 0 0 var(--accent);
-  }
-  textarea.field {
-    height: auto;
-    padding: 0.6rem 0.7rem;
-    border: 1px solid var(--line-strong);
-    border-radius: 4px;
-    font-family: var(--font-mono);
-    font-size: 0.82rem;
-  }
-  /* The model's decision, printed like a small rubber stamp. */
-  .stamp {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.05rem 0.45rem;
-    border: 1.5px solid currentColor;
-    border-radius: 3px;
-    font-family: var(--font-mono);
-    font-size: 10.5px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    line-height: 1.5;
-  }
-  .kbd {
-    display: inline-grid;
-    place-items: center;
-    min-width: 1.35rem;
-    height: 1.35rem;
-    padding: 0 0.3rem;
-    border-radius: 4px;
-    border: 1px solid var(--line-strong);
-    border-bottom-width: 2px;
-    background: var(--panel);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--muted);
-  }
-  .glass {
-    background: var(--glass);
-    backdrop-filter: blur(14px) saturate(1.3);
-    -webkit-backdrop-filter: blur(14px) saturate(1.3);
-  }
-  .scroll-y {
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-width: thin;
-    scrollbar-color: var(--line-strong) transparent;
-  }
-  /* Dotted leaders between a ledger entry and its figure. */
-  .leader {
-    flex: 1;
-    min-width: 1rem;
-    border-bottom: 1.5px dotted var(--line-strong);
-    transform: translateY(-0.3em);
-  }
-  /* Faint ruled paper. */
-  .ruled {
-    background-image: repeating-linear-gradient(to bottom, transparent 0 31px, color-mix(in oklab, var(--line) 70%, transparent) 31px 32px);
-  }
-}
-
 :focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 1.5px solid var(--bone);
+  outline-offset: 3px;
 }
 
-/* A new payment comes off the wire. */
-@keyframes slide-in {
-  from {
-    transform: translateY(-6px);
-    opacity: 0;
-  }
+.figure {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
-.row-new {
-  animation: slide-in 0.35s ease-out;
-}
-@keyframes pop {
-  from {
-    transform: translateY(4px) scale(0.985);
-    opacity: 0;
-  }
-}
-.pop {
-  animation: pop 0.32s var(--spring);
-}
-
-/* The verdict stamp lands on the file: big, then pressed into the paper. */
-@keyframes stamp-down {
-  0% {
-    transform: translate(-50%, -50%) rotate(-11deg) scale(2.2);
-    opacity: 0;
-  }
-  45% {
-    opacity: 1;
-  }
-  100% {
-    transform: translate(-50%, -50%) rotate(-11deg) scale(1);
-    opacity: 1;
-  }
-}
-.verdict-stamp {
-  position: absolute;
-  left: 50%;
-  top: 38%;
-  z-index: 5;
-  pointer-events: none;
-  padding: 0.3rem 1.1rem 0.2rem;
-  border: 4px double currentColor;
-  border-radius: 8px;
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: clamp(1.8rem, 6cqi, 3.2rem);
-  letter-spacing: 0.16em;
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  mix-blend-mode: screen;
-  animation: stamp-down 0.42s var(--spring) both;
-  transform: translate(-50%, -50%) rotate(-11deg);
+  color: var(--smoke);
+}
+.prose-note {
+  max-width: 38rem;
+  color: var(--ash);
+}
+.prose-note strong {
+  color: var(--bone);
+  font-weight: 600;
 }
 
-/* Cases slide between each other with the View Transitions API where it exists. */
-::view-transition-old(case-file) {
-  animation: 0.22s ease-in both file-out;
+/* A number inside a sentence that can be changed: underlined like a footnote, not boxed like a field. */
+.inline-num {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.15em;
+  border-bottom: 1.5px dashed var(--smoke);
+  transition: border-color 0.2s;
 }
-::view-transition-new(case-file) {
-  animation: 0.34s var(--spring) both file-in;
+.inline-num:hover,
+.inline-num:focus-within {
+  border-color: var(--bone);
 }
-@keyframes file-out {
-  to {
-    transform: translateX(-3%) rotate(-1.2deg);
-    opacity: 0;
-  }
+.inline-num button {
+  font-family: var(--mono);
+  font-size: 0.42em;
+  line-height: 1;
+  color: var(--smoke);
+  padding: 0.15em 0.25em;
+  border-radius: 3px;
+  transform: translateY(-0.35em);
 }
-@keyframes file-in {
+.inline-num button:hover:not(:disabled) {
+  color: var(--bone);
+}
+.inline-num button:disabled {
+  opacity: 0.3;
+}
+.inline-select {
+  appearance: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  border: 0;
+  border-bottom: 1.5px dashed var(--smoke);
+  padding: 0 0.1em;
+  cursor: pointer;
+}
+.inline-select:hover,
+.inline-select:focus-visible {
+  border-color: var(--bone);
+  outline: none;
+}
+.inline-select option {
+  background: var(--ground-2);
+  color: var(--bone);
+  font-family: var(--sans);
+  font-size: 16px;
+}
+
+.link {
+  color: var(--bone);
+  text-decoration: underline;
+  text-decoration-color: var(--smoke);
+  text-underline-offset: 4px;
+}
+.link:hover {
+  text-decoration-color: var(--bone);
+}
+
+/* Rows of the alert queue expand in place. */
+.queue-row {
+  transition: background 0.15s;
+}
+.queue-row:hover {
+  background: var(--rule-soft);
+}
+
+/* Sections arrive as you reach them. */
+.arrive {
+  animation: arrive 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@keyframes arrive {
   from {
+    opacity: 0;
     transform: translateY(14px);
-    opacity: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .row-new,
-  .pop,
-  .verdict-stamp {
-    animation: none;
-  }
-  ::view-transition-group(*),
-  ::view-transition-old(*),
-  ::view-transition-new(*) {
-    animation: none !important;
-  }
-  .btn {
-    transition: none;
-  }
-}
-
-/* The briefing's example case: the file slides in, then gets stamped, on a loop. */
-.case-loop {
-  animation: case-in 4.5s ease-out infinite;
-}
-@keyframes case-in {
-  0% {
-    transform: translateX(-14px);
-    opacity: 0;
-  }
-  10%,
-  90% {
-    transform: none;
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-.case-loop .case-stamp {
-  top: 50%;
-  left: 72%;
-  font-size: 1.6rem;
-  animation: case-stamp 4.5s var(--spring) infinite;
-}
-@keyframes case-stamp {
-  0%,
-  30% {
-    opacity: 0;
-    transform: translate(-50%, -50%) rotate(-11deg) scale(1.8);
-  }
-  40%,
-  88% {
-    opacity: 1;
-    transform: translate(-50%, -50%) rotate(-11deg) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -50%) rotate(-11deg) scale(1);
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .case-loop,
-  .case-loop .case-stamp {
+  html {
+    scroll-behavior: auto;
+  }
+  .arrive {
     animation: none;
-    opacity: 1;
   }
 }

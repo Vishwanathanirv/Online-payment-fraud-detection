@@ -21,6 +21,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import {
   anomalyScore,
+  explainGbdt,
   averagePrecision,
   calibrate,
   confusion,
@@ -155,7 +156,7 @@ async function main() {
   const { time, X, amount, y } = await load();
   const c1 = timeCut(time, 0.6);
   const c2 = timeCut(time, 0.8);
-  const split = (a: number, b: number) => ({ X: X.slice(a, b), y: y.slice(a, b), amount: amount.slice(a, b), from: time[a], to: time[b - 1] });
+  const split = (a: number, b: number) => ({ X: X.slice(a, b), y: y.slice(a, b), amount: amount.slice(a, b), time: time.slice(a, b), from: time[a], to: time[b - 1] });
   const train = split(0, c1);
   const valid = split(c1, c2);
   const test = split(c2, X.length);
@@ -193,6 +194,8 @@ async function main() {
   const rng = new Rng(2013);
   const results: Result[] = [];
   let calibration = { eceBefore: 0, eceAfter: 0 };
+  const testScores: number[][] = [];
+  const thresholds: number[] = [];
   for (const [name, f] of models) {
     const vraw = valid.X.map(f);
     const cal = fitPlatt(vraw, valid.y);
@@ -200,6 +203,8 @@ async function main() {
     const thr = costOptimalThreshold(vs, valid.y, valid.amount, REVIEW_COST).threshold;
     const traw = test.X.map(f);
     const ts = traw.map((p) => calibrate(cal, p));
+    testScores.push(ts);
+    thresholds.push(thr);
     results.push(evaluate(name, ts, test.y, test.amount, thr, rng));
     if (results.length === 1) calibration = { eceBefore: expectedCalibrationError(traw, test.y), eceAfter: expectedCalibrationError(ts, test.y) };
   }
@@ -230,6 +235,7 @@ async function main() {
   };
   mkdirSync("docs", { recursive: true });
   writeFileSync("docs/benchmark.json", JSON.stringify(out, null, 2) + "\n");
+  writeReplay(test, testScores, thresholds, gbdt, time[c2]);
 
   const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
   const eur = (v: number) => `€${Math.round(v).toLocaleString("en-US")}`;
@@ -241,6 +247,41 @@ async function main() {
       `| ${r.model} | ${r.prAuc.toFixed(3)} (${r.prAucCi[0].toFixed(3)}–${r.prAucCi[1].toFixed(3)}) | ${r.rocAuc.toFixed(3)} | ${pct(r.recallAt01Fpr)} | ${pct(r.recallAt1Fpr)} | ${r.alerts} | ${pct(r.precision)} | ${pct(r.recall)} | ${pct(r.fraudAmountCaught)} | ${eur(r.cost)} | ${eur(r.savedVsNoModel)} |`,
     );
   console.log(`\nCalibration error (GBDT, test): ${calibration.eceBefore.toFixed(4)} → ${calibration.eceAfter.toFixed(4)} · ${out.runtimeSeconds}s`);
+}
+
+/**
+ * Every payment in the untouched test window, as the web app replays it: real time, real amount,
+ * the real label, and each model's calibrated score from models that never saw this window.
+ * Columnar and rounded to keep it small. Payments the trees score at 0.5% or more also carry their
+ * four strongest TreeSHAP contributions (feature index, contribution to the log-odds).
+ */
+function writeReplay(test: { X: number[][]; y: number[]; amount: number[]; time: number[] }, scores: number[][], thresholds: number[], gbdt: ReturnType<typeof trainGbdt>["model"], startTime: number) {
+  const r4 = (v: number) => Math.round(v * 1e4) / 1e4;
+  const why: Record<number, [number, number][]> = {};
+  test.X.forEach((x, i) => {
+    if (scores[0][i] < 0.005 && !test.y[i]) return;
+    const phi = explainGbdt(gbdt, x);
+    why[i] = phi
+      .map((v, f) => [f, Math.round(v * 1000) / 1000] as [number, number])
+      .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+      .slice(0, 4);
+  });
+  const replay = {
+    source: "Credit Card Fraud Detection (ULB Machine Learning Group and Worldline), ODbL 1.0, test window only",
+    features: [...Array.from({ length: 28 }, (_, i) => `V${i + 1}`), "log amount", "hour of day"],
+    startSeconds: startTime,
+    reviewCostEur: REVIEW_COST,
+    models: ["gbdt", "logreg", "iforest"],
+    thresholds: thresholds.map(r4),
+    // Seconds since the dataset's first payment, exactly as in the original file.
+    t: test.time.map((s) => Math.round(s)),
+    amount: test.amount.map((a) => Math.round(a * 100) / 100),
+    fraud: test.y,
+    score: scores.map((s) => s.map(r4)),
+    why,
+  };
+  writeFileSync("apps/web/public/replay.json", JSON.stringify(replay));
+  console.log(`· replay: ${test.X.length} payments, ${Object.keys(why).length} explained, apps/web/public/replay.json`);
 }
 
 main().catch((e) => {
