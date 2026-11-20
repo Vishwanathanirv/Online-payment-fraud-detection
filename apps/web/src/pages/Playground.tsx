@@ -3,7 +3,7 @@ import { api, inr, pct, type ScoreResult } from "../api";
 import { DecisionBadge, Panel, RiskBar } from "../components";
 
 const CATEGORIES = ["grocery", "fuel", "restaurants", "fashion", "electronics", "travel", "pharmacy", "digital_goods", "gift_cards", "crypto"];
-const PLACES: Record<string, { lat: number; lon: number; country: string }> = {
+export const PLACES: Record<string, { lat: number; lon: number; country: string }> = {
   "Chennai, IN": { lat: 13.08, lon: 80.27, country: "IN" },
   "Mumbai, IN": { lat: 19.08, lon: 72.88, country: "IN" },
   "Delhi, IN": { lat: 28.61, lon: 77.21, country: "IN" },
@@ -12,7 +12,7 @@ const PLACES: Record<string, { lat: number; lon: number; country: string }> = {
   "Lagos": { lat: 6.52, lon: 3.38, country: "NG" },
 };
 
-const PRESETS = [
+export const PRESETS = [
   { name: "Weekly groceries", v: { category: "grocery", amount: 1200, channel: "pos", place: "Chennai, IN", hour: 18, newDevice: false } },
   { name: "Late-night crypto", v: { category: "crypto", amount: 85000, channel: "online", place: "Chennai, IN", hour: 2, newDevice: true } },
   // Hour -1 means "right now": a cloned card used abroad while its owner just shopped at home.
@@ -20,7 +20,23 @@ const PRESETS = [
   { name: "Gift-card cash-out", v: { category: "gift_cards", amount: 25000, channel: "online", place: "Chennai, IN", hour: 23, newDevice: true } },
 ];
 
-type Form = (typeof PRESETS)[number]["v"];
+export type Form = (typeof PRESETS)[number]["v"];
+
+/**
+ * The scoring request for a bench payment. The time is the next occurrence of that hour (or now),
+ * so the payment always comes after the demo customer's last purchase and time-based signals mean
+ * the same thing whatever the clock says.
+ */
+export function scoreRequest(f: Form) {
+  const p = PLACES[f.place];
+  const now = new Date();
+  const d = new Date(now);
+  if (f.hour >= 0 && f.hour !== now.getHours()) {
+    d.setHours(f.hour, 0, 0, 0);
+    if (d.getTime() <= now.getTime()) d.setDate(d.getDate() + 1);
+  }
+  return { category: f.category, amount: f.amount, channel: f.channel, lat: p.lat, lon: p.lon, country: p.country, deviceId: f.newDevice ? `new_${Date.now()}` : "device_demo", ts: d.getTime() };
+}
 
 const CSV_SAMPLE = `category,amount,channel,cardId,deviceId,country,lat,lon
 grocery,850,pos,card_a,dev_a,IN,13.08,80.27
@@ -48,20 +64,8 @@ export function Playground() {
   async function score(f = form) {
     setError(null);
     setBusy(true);
-    const p = PLACES[f.place];
-    // The next time it is that hour (or now), so the payment always comes after the demo
-    // customer's last purchase and time-based signals mean the same thing whatever the clock says.
-    const now = new Date();
-    const d = new Date(now);
-    if (f.hour >= 0 && f.hour !== now.getHours()) {
-      d.setHours(f.hour, 0, 0, 0);
-      if (d.getTime() <= now.getTime()) d.setDate(d.getDate() + 1);
-    }
     try {
-      const r = await api<{ result: ScoreResult }>("/api/score", {
-        method: "POST",
-        json: { category: f.category, amount: f.amount, channel: f.channel, lat: p.lat, lon: p.lon, country: p.country, deviceId: f.newDevice ? `new_${Date.now()}` : "device_demo", ts: d.getTime() },
-      });
+      const r = await api<{ result: ScoreResult }>("/api/score", { method: "POST", json: scoreRequest(f) });
       setResult(r.result);
     } catch (e) {
       setError((e as Error).message);

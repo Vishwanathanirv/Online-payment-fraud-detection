@@ -337,3 +337,51 @@ body {
     transition: none;
   }
 }
+
+/* The briefing's example case: the file slides in, then gets stamped, on a loop. */
+.case-loop {
+  animation: case-in 4.5s ease-out infinite;
+}
+@keyframes case-in {
+  0% {
+    transform: translateX(-14px);
+    opacity: 0;
+  }
+  10%,
+  90% {
+    transform: none;
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.case-loop .case-stamp {
+  top: 50%;
+  left: 72%;
+  font-size: 1.6rem;
+  animation: case-stamp 4.5s var(--spring) infinite;
+}
+@keyframes case-stamp {
+  0%,
+  30% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(-11deg) scale(1.8);
+  }
+  40%,
+  88% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(-11deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(-11deg) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .case-loop,
+  .case-loop .case-stamp {
+    animation: none;
+    opacity: 1;
+  }
+}

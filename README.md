@@ -55,6 +55,8 @@ On this dataset the trees and logistic regression are statistically tied. The an
 
 ## Features
 
+**First visit and How it works.** A short pitch (the problem, the idea, why it is different) opens over the live desk, with **Work a live case** opening the riskiest open case. **How it works** (header, or the command menu) follows one payment through the real scorer in six stages: the payment, the card context the features add, the calibrated score and the isolation-forest second opinion, the TreeSHAP evidence, the review and block thresholds, and what an analyst stamp does. **What is FraudLens?** brings the pitch back.
+
 - **Models written from scratch in TypeScript, with no ML libraries:**
   - histogram-based gradient-boosted trees, with second-order gain, L2 regularisation, row and column sampling, class weighting and early stopping
   - logistic regression trained with Adam

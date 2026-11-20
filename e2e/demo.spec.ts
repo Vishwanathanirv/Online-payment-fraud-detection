@@ -1,5 +1,39 @@
 import { expect, test } from "@playwright/test";
 
+// Returning visitors have seen the first-visit pitch. It has its own tests below.
+test.beforeEach(async ({ page }, info) => {
+  if (!info.title.startsWith("first visit")) await page.addInitScript(() => localStorage.setItem("fraudlens-pitch-seen", "1"));
+});
+
+test("first visit: the idea, then the riskiest live case in one click", async ({ page }) => {
+  await page.goto("/");
+  const pitch = page.getByRole("dialog", { name: /case you can close/ });
+  await expect(pitch).toBeVisible();
+  await expect(pitch.getByRole("button", { name: "Work a live case →" })).toBeFocused();
+  await pitch.getByRole("button", { name: "Work a live case →" }).click();
+  await expect(pitch).toBeHidden();
+  // The case opens on the desk, with its evidence.
+  await expect(page.getByText(/Exhibit A/).first()).toBeVisible({ timeout: 20_000 });
+  await page.reload();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+test("how it works follows one payment through the real scorer", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "How it works" }).click();
+  const how = page.getByRole("dialog", { name: "Follow one payment onto the desk" });
+  const stage = (n: RegExp) => how.getByRole("list", { name: "Stages" }).getByRole("button", { name: n });
+  await stage(/Score/).click();
+  await expect(how.getByText("Chance of fraud")).toBeVisible();
+  await stage(/Evidence/).click();
+  await expect(how.getByText("Implied travel speed")).toBeVisible();
+  await how.getByRole("radio", { name: "Weekly groceries" }).click();
+  await stage(/Decision/).click();
+  await expect(how.getByText(/Review at [\d.]+% or more/)).toBeVisible();
+  await how.getByRole("button", { name: "Score your own on the Test bench →" }).click();
+  await expect(page).toHaveURL(/\/try$/);
+});
+
 test("every view opens without errors", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));

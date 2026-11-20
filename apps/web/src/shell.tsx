@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { api } from "./api";
+import { Briefing, HowItWorks, useBriefing } from "./intro";
 
 export const VIEWS = [
   { to: "/", t: "Case desk", short: "Desk", hint: "Open cases the model flagged. Stamp each one fraud or cleared", key: "1" },
@@ -142,6 +143,9 @@ export function Shell({ children }: { children: ReactNode }) {
   const [palette, setPalette] = useState(false);
   const [help, setHelp] = useState(false);
   const [found, setFound] = useState<Command[]>([]);
+  const [briefing, setBriefing] = useBriefing();
+  const [how, setHow] = useState(false);
+  const dialog = briefing || how;
   const view = VIEWS.find((v) => v.to === loc.pathname) ?? VIEWS[0];
   useEffect(() => {
     document.title = `${view.t} · FraudLens`;
@@ -182,18 +186,20 @@ export function Shell({ children }: { children: ReactNode }) {
     { id: "resume", group: "Traffic", label: "Resume traffic", run: () => simulate({ running: true }) },
     { id: "attack", group: "Traffic", label: "Start an attack wave", hint: "More fraud for a while, to watch the models react", run: () => simulate({ fraudBoost: 20 }) },
     { id: "calm", group: "Traffic", label: "End the attack wave", run: () => simulate({ fraudBoost: 6 }) },
+    { id: "idea", group: "Help", label: "The idea behind FraudLens", run: () => setBriefing(true) },
+    { id: "how", group: "Help", label: "How it works", hint: "Follow one payment through the real scorer", run: () => setHow(true) },
     { id: "help", group: "Help", label: "Keyboard shortcuts", keys: "?", run: () => setHelp(true) },
     ...found,
   ];
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && !dialog) {
         e.preventDefault();
         setPalette((p) => !p);
         return;
       }
-      if (isTyping(e) || e.metaKey || e.ctrlKey || e.altKey || palette) return;
+      if (isTyping(e) || e.metaKey || e.ctrlKey || e.altKey || palette || dialog) return;
       if (e.key === "/") {
         e.preventDefault();
         setPalette(true);
@@ -207,18 +213,33 @@ export function Shell({ children }: { children: ReactNode }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [navigate, palette]);
+  }, [navigate, palette, dialog]);
+
+  // "Work a live case": the riskiest open case on the desk right now. The stream needs a moment
+  // to flag its first payment after a fresh load, so this waits for one.
+  const workCase = useCallback(async () => {
+    for (let i = 0; i < 20; i++) {
+      const r = await api<{ transactions: { id: string; probability: number; label: string | null }[] }>("/api/transactions?decision=flagged&limit=50").catch(() => null);
+      const open = r?.transactions.filter((t) => !t.label).sort((a, b) => b.probability - a.probability)[0];
+      if (open) return navigate(`/?case=${encodeURIComponent(open.id)}`);
+      await new Promise((res) => setTimeout(res, 500));
+    }
+    navigate("/");
+  }, [navigate]);
 
   const ctx = useMemo(() => ({ setStatus, openPalette: () => setPalette(true) }), []);
 
   return (
     <Ctx.Provider value={ctx}>
-      <div className="grid h-dvh grid-rows-[auto_minmax(0,1fr)_auto]">
+      <div className="grid h-dvh grid-rows-[auto_minmax(0,1fr)_auto]" inert={dialog}>
         <header className="glass relative z-30 flex items-end gap-2 border-b border-line-strong px-3 pt-2 sm:gap-4 sm:px-5">
           <a href="/" className="mb-2 flex shrink-0 items-center gap-2" aria-label="FraudLens, case desk">
             <img src="/favicon.svg" alt="" width={28} height={28} className="h-7 w-7" />
             <span className="display text-[1.2rem] font-semibold italic leading-none">FraudLens</span>
           </a>
+          <button className="mb-2 hidden text-[12.5px] text-muted underline-offset-4 hover:text-ink hover:underline xl:inline" onClick={() => setBriefing(true)}>
+            What is FraudLens?
+          </button>
           {/* The rooms of the desk, as folder tabs. On phones they move to a thumb bar at the bottom. */}
           <nav aria-label="Views" className="ml-2 hidden items-end gap-1 md:flex">
             {VIEWS.map((v) => {
@@ -251,6 +272,9 @@ export function Shell({ children }: { children: ReactNode }) {
               <span className={`h-2 w-2 rounded-full ${status === "live" ? "animate-pulse bg-bad" : "bg-faint"}`} />
               {status === "live" ? "Live" : "Connecting"}
             </span>
+            <button className="btn h-10 px-3 text-[13px]" onClick={() => setHow(true)}>
+              How it works
+            </button>
             <button className="btn hidden h-10 w-10 justify-center px-0 sm:inline-flex" onClick={() => setHelp(true)} aria-label="Keyboard shortcuts">
               ?
             </button>
@@ -270,6 +294,28 @@ export function Shell({ children }: { children: ReactNode }) {
         </nav>
       </div>
       {palette && <Palette commands={commands} onClose={() => setPalette(false)} />}
+      {briefing && (
+        <Briefing
+          onClose={() => setBriefing(false)}
+          onTry={() => {
+            setBriefing(false);
+            void workCase();
+          }}
+          onHow={() => {
+            setBriefing(false);
+            setHow(true);
+          }}
+        />
+      )}
+      {how && (
+        <HowItWorks
+          onClose={() => setHow(false)}
+          onBench={() => {
+            setHow(false);
+            navigate("/try");
+          }}
+        />
+      )}
       {help && (
         <div className="fixed inset-0 z-50 grid place-items-center p-4" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
           <button className="absolute inset-0 bg-black/35" aria-label="Close" onClick={() => setHelp(false)} />
