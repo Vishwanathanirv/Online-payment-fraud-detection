@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
 const file = (name: string, rows: string[]) => ({ name, mimeType: "text/csv", buffer: Buffer.from(rows.join("\n")) });
@@ -102,4 +103,13 @@ test("a file with report dates: delays, unreported fraud and monthly ratios", as
   await expect(monthly.getByRole("checkbox", { name: "online" })).toBeChecked();
   await expect(monthly.getByRole("checkbox", { name: "pos" })).not.toBeChecked();
   await expect(page.locator("header")).toContainText("0 network requests since opening");
+});
+
+test("the decision record downloads with the policy and its outcome", async ({ page }) => {
+  await page.goto("/");
+  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Download the decision record" }).click()]);
+  const text = readFileSync(await download.path(), "utf8");
+  expect(download.suggestedFilename()).toMatch(/^fraudlens-decision-\d{4}-\d{2}-\d{2}\.txt$/);
+  expect(text).toContain("Block at score >=");
+  expect(text).toContain("Total cost: EUR");
 });

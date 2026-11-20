@@ -316,3 +316,21 @@ describe("files with report dates and disputes", () => {
     expect(["13.1", "4853", "C08", "", "duplicate"].some(isFraudReason)).toBe(false);
   });
 });
+
+describe("decision record", () => {
+  it("states the policy, the costs and the outcome, without payment rows", async () => {
+    const { decisionRecord } = await import("../src/engine/record");
+    const d = ds([
+      { t: 0, a: 100, s: 0.9, f: 1, id: "secret-1" },
+      { t: 60, a: 50, s: 0.1, f: 0, id: "secret-2" },
+    ]);
+    const th = { block: 0.5, review: 0.5 };
+    const o = evaluate(d, "own", th, costs, ample);
+    const text = decisionRecord({ d, model: "own", th, costs, staffing: ample, rules: [{ x: "amount > 10", a: "review", on: true }], o, mature: false, link: "https://x/#a=1", at: new Date(0) });
+    expect(text).toContain("Block at score >= 0.5");
+    expect(text).toContain("Rule, review: amount > 10");
+    expect(text).toContain("Fraud stopped: 1 payments, EUR 100.00");
+    expect(text).toContain("Reopen these settings: https://x/#a=1");
+    expect(text).not.toContain("secret");
+  });
+});

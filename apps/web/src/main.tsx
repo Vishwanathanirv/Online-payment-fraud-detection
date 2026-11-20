@@ -12,6 +12,7 @@ import { loadPublic, subset, totals, type Dataset } from "./engine/dataset";
 import { maturity, matureCut } from "./engine/maturity";
 import { DEFAULT_LIMITS, type Limits } from "./engine/monitor";
 import { compiles, forceOf, scoreField, type Rule } from "./engine/rules";
+import { decisionRecord } from "./engine/record";
 import { MaturityModule, MonitorModule, RulesModule } from "./operations";
 import { currencyList, loadRates, moneyFormat, niceStep, rateBetween, type Rates } from "./engine/money";
 import { cheapest, DEFAULT_COSTS, DEFAULT_STAFFING, evaluate, type Costs, type Outcome, type Staffing, type Thresholds } from "./engine/policy";
@@ -602,6 +603,20 @@ function App() {
             <div className="mt-16">
               <PaymentsChart d={d} o={o} />
             </div>
+            <button
+              className="link mt-10 text-[15px]"
+              onClick={() => {
+                const text = decisionRecord({ d, model, th, costs, staffing, rules: settledRules, o, mature, link: location.href, at: new Date() });
+                const url = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `fraudlens-decision-${new Date().toISOString().slice(0, 10)}.txt`;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+              }}
+            >
+              Download the decision record
+            </button>
           </section>
 
           <Section id="thresholds" kicker="Thresholds" title="Where to draw the lines.">
