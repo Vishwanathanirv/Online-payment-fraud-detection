@@ -3,6 +3,7 @@ import { AMOUNT, caseNumber, featureName, featureValue, HOUR, loadCaseModel, pic
 import { counterfactual, probability, type CaseModel, type Counterfactual } from "../engine/counterfactual";
 import type { Dataset } from "../engine/dataset";
 import { useDesk } from "../store";
+import { downloadCanvas, drawCaseCard } from "../engine/share";
 import { useMoney } from "../ui";
 import { scoreLabel } from "./dial";
 
@@ -161,10 +162,70 @@ function CaseFile({ d, model, row, line, go }: { d: Dataset; model: CaseModel; r
           </section>
         </div>
       </article>
+      <ShareBar
+        build={() => ({
+          number: caseNumber(row),
+          seen: seenAt(d.t[row]),
+          amount: eur(d.amount[row]),
+          risk: `${scoreLabel(score, true)} (gradient-boosted trees)`,
+          line: `decline at ≥ ${scoreLabel(line, true)}`,
+          truth: fraud ? "Confirmed fraud" : "Genuine customer",
+          declined,
+          headline: `${verdict[0]} ${verdict[1]}`,
+          reasons: why.map(([f, v]) => ({ name: featureName(f, d.features), value: v })),
+          whatIf: !cf
+            ? ["Nothing: at this line it already goes through."]
+            : !cf.reached
+              ? ["No believable change clears it.", "Fraud through and through."]
+              : [`${scoreLabel(cf.before, true)} → ${scoreLabel(cf.after, true)} if:`, ...cf.changes.map((c) => `${featureName(c.feature, d.features)}: ${featureValue(c.feature, c.from, eur)} → ${featureValue(c.feature, c.to, eur)}`)],
+          url: `${location.host}/case/${row}`,
+        })}
+        name={caseNumber(row)}
+      />
       <p className="mt-6 hidden text-[14px] text-smoke sm:block">
         Keys: <span className="kbd">[</span> <span className="kbd">]</span> riskier or less risky, <span className="kbd">F</span> another fraud, <span className="kbd">A</span> a false alarm.
       </p>
     </div>
+  );
+}
+
+/** Share the case: a link that reopens it exactly, or the case file as an image. */
+function ShareBar({ build, name }: { build: () => Parameters<typeof drawCaseCard>[0]; name: string }) {
+  const [copied, setCopied] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2200);
+    } catch {
+      prompt("Copy this link", location.href);
+    }
+  };
+  const image = async () => {
+    await document.fonts.ready;
+    const cv = drawCaseCard(build(), 2);
+    setPreview(cv.toDataURL("image/png"));
+    await downloadCanvas(cv, `fraudlens-${name.toLowerCase()}.png`);
+  };
+  const canShare = typeof navigator.share === "function";
+  return (
+    <section className="mt-8 flex flex-wrap items-center gap-3" aria-label="Share this case">
+      <span className="eyebrow mr-2">Share this case</span>
+      <button type="button" className={`plate ${copied ? "lit" : ""}`} onClick={copy} aria-live="polite">
+        {copied ? "Link copied ✓" : "Copy link"}
+      </button>
+      <button type="button" className="plate" onClick={image}>
+        Save as image
+      </button>
+      {canShare && (
+        <button type="button" className="plate" onClick={() => void navigator.share({ title: `FraudLens case ${name}`, url: location.href }).catch(() => undefined)}>
+          Share…
+        </button>
+      )}
+      <span className="text-[13px] text-smoke">The link reopens this exact case at this line. Nothing about you is in it.</span>
+      {preview && <img src={preview} alt={`Case file ${name}, as an image`} className="arrive mt-3 w-full max-w-md rounded-[4px] border border-rule shadow-[0_20px_40px_-20px_rgba(0,0,0,0.9)]" />}
+    </section>
   );
 }
 

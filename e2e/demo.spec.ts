@@ -120,6 +120,25 @@ test("a counterfactual never changes the amount or time when told to keep them",
   await expect(page.getByRole("slider", { name: /Try a value for (Amount|Time of day)/ })).toHaveCount(0);
 });
 
+test("a case file shares as a link that reopens it, and as an image", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/case/fraud");
+  await expect(page).toHaveURL(/\/case\/\d+#/);
+  const number = (await page.locator("article").getAttribute("aria-label"))!;
+  await page.getByRole("button", { name: "Copy link" }).click();
+  await expect(page.getByRole("button", { name: "Link copied ✓" })).toBeVisible();
+  const link = await page.evaluate(() => navigator.clipboard.readText());
+  expect(link).toMatch(/\/case\/\d+#.*line=/);
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Save as image" }).click();
+  expect((await download).suggestedFilename()).toBe(`fraudlens-${number.replace("Case ", "").toLowerCase()}.png`);
+  const size = await page.getByRole("img", { name: /as an image/ }).evaluate((img: HTMLImageElement) => [img.naturalWidth, img.naturalHeight]);
+  expect(size).toEqual([2400, 1260]);
+  const other = await context.newPage();
+  await other.goto(link);
+  await expect(other.locator("article")).toHaveAttribute("aria-label", number);
+});
+
 /* ───────────── the ledger */
 
 test("loads the real test window with the cheapest policy", async ({ page }) => {
