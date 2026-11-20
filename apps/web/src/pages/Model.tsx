@@ -6,6 +6,38 @@ import { usePoll } from "../hooks";
 
 const NAMES = { gbdt: "Gradient-boosted trees", logreg: "Logistic regression", iforest: "Isolation forest", ensemble: "Blended ensemble" } as const;
 
+const hours = ([a, b]: number[]) => `hours ${a.toFixed(1)}–${b.toFixed(1)}`;
+
+/** The benchmark protocol, read from the same results file the table shows, so it can't drift from the numbers. */
+function BenchMethod() {
+  const p = bench.protocol;
+  return (
+    <details className="group mx-4 mt-3 rounded-md border border-line px-3 py-2 text-sm text-muted open:pb-3">
+      <summary className="cursor-pointer select-none font-semibold text-accent marker:text-faint">How it was measured</summary>
+      <ul className="mt-2 list-disc space-y-1.5 pl-5">
+        <li>
+          <b className="text-ink">Split by time, never at random.</b> Training {hours(p.trainHours)}, validation {hours(p.validHours)}, test {hours(p.testHours)}. Payments that share a timestamp stay in the same split.
+        </li>
+        <li>
+          <b className="text-ink">Everything tuned is tuned on validation:</b> the hyperparameter grid, early stopping, Platt calibration and the alert threshold. The test window is used once, to report.
+        </li>
+        <li>
+          <b className="text-ink">Inputs:</b> the 28 PCA components, log amount and hour of day. The original fields are confidential, so there are no card or device IDs and none of FraudLens's behavioural features.
+        </li>
+        <li>
+          <b className="text-ink">Cost model:</b> a missed fraud costs its amount; each alert costs €{p.reviewCostEur} of analyst time. The threshold minimises that cost on validation.
+        </li>
+        <li>
+          <b className="text-ink">Uncertainty:</b> with only {bench.test.fraud} frauds in the test window, PR-AUC carries a 95% bootstrap interval ({p.bootstrap} resamples).
+        </li>
+        <li>
+          <b className="text-ink">Data:</b> {bench.dataset.name}, {bench.dataset.rows.toLocaleString("en-IN")} payments, {bench.dataset.fraud} fraud. The file is checked against SHA-256 <span className="break-all font-mono text-[11px]">{bench.dataset.sha256}</span> before use.
+        </li>
+      </ul>
+    </details>
+  );
+}
+
 export function Model() {
   const { data, reload } = usePoll<ModelInfo>("/api/model", 0);
   if (!data) return <p className="text-muted">Loading model…</p>;
@@ -63,10 +95,11 @@ export function Model() {
         </Panel>
       </div>
 
-      <Panel title="Second opinion: real card data" action={<a className="text-xs font-semibold text-accent underline-offset-4 hover:underline" href="https://github.com/Vishwanathanirv/online-payment-fraud-detection/blob/main/docs/benchmark.md">How it was measured</a>}>
+      <Panel title="Second opinion: real card data">
         <p className="px-4 pt-3 text-sm text-muted">
           The same from-scratch models on {bench.dataset.rows.toLocaleString("en-IN")} real European card payments ({bench.dataset.name.replace(/ \(.*/, "")}, {bench.dataset.licence}). Split by time; tuned on validation; tested once on the last {bench.test.payments.toLocaleString("en-IN")} payments ({bench.test.fraud} fraud). Each alert costs €{bench.protocol.reviewCostEur} to review; each missed fraud costs its amount.
         </p>
+        <BenchMethod />
         <div className="mt-3 overflow-x-auto">
           <table className="w-full min-w-[34rem] text-sm">
             <thead>

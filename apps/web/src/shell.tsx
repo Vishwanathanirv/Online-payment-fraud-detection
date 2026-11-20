@@ -56,28 +56,6 @@ type Status = "live" | "connecting" | "paused";
 const Ctx = createContext<{ setStatus: (s: Status) => void; openPalette: () => void }>({ setStatus: () => {}, openPalette: () => {} });
 export const useShell = () => useContext(Ctx);
 
-type Theme = "system" | "light" | "dark";
-function useTheme(): [Theme, (t: Theme) => void] {
-  const [t, setT] = useState<Theme>(() => {
-    try {
-      return (localStorage.getItem("fraudlens-theme") as Theme) || "system";
-    } catch {
-      return "system";
-    }
-  });
-  useEffect(() => {
-    const el = document.documentElement;
-    if (t === "system") delete el.dataset.theme;
-    else el.dataset.theme = t;
-    try {
-      localStorage.setItem("fraudlens-theme", t);
-    } catch {
-      /* private mode */
-    }
-  }, [t]);
-  return [t, setT];
-}
-
 type Command = { id: string; label: string; hint?: string; group: string; run: () => void | Promise<void>; keys?: string };
 
 function Palette({ commands, onClose }: { commands: Command[]; onClose: () => void }) {
@@ -163,7 +141,6 @@ export function Shell({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>("connecting");
   const [palette, setPalette] = useState(false);
   const [help, setHelp] = useState(false);
-  const [theme, setTheme] = useTheme();
   const [found, setFound] = useState<Command[]>([]);
   const view = VIEWS.find((v) => v.to === loc.pathname) ?? VIEWS[0];
   useEffect(() => {
@@ -205,11 +182,7 @@ export function Shell({ children }: { children: ReactNode }) {
     { id: "resume", group: "Traffic", label: "Resume traffic", run: () => simulate({ running: true }) },
     { id: "attack", group: "Traffic", label: "Start an attack wave", hint: "More fraud for a while, to watch the models react", run: () => simulate({ fraudBoost: 20 }) },
     { id: "calm", group: "Traffic", label: "End the attack wave", run: () => simulate({ fraudBoost: 6 }) },
-    { id: "theme-light", group: "Appearance", label: "Light theme", run: () => setTheme("light") },
-    { id: "theme-dark", group: "Appearance", label: "Dark theme", run: () => setTheme("dark") },
-    { id: "theme-system", group: "Appearance", label: "Match my system", run: () => setTheme("system") },
     { id: "help", group: "Help", label: "Keyboard shortcuts", keys: "?", run: () => setHelp(true) },
-    { id: "source", group: "Help", label: "Source code on GitHub", run: () => void window.open("https://github.com/Vishwanathanirv/online-payment-fraud-detection", "_blank", "noopener") },
     ...found,
   ];
 
@@ -278,12 +251,6 @@ export function Shell({ children }: { children: ReactNode }) {
               <span className={`h-2 w-2 rounded-full ${status === "live" ? "animate-pulse bg-bad" : "bg-faint"}`} />
               {status === "live" ? "Live" : "Connecting"}
             </span>
-            <button className="btn h-10 w-10 justify-center px-0" onClick={() => setTheme(theme === "dark" ? "light" : theme === "light" ? "system" : "dark")} aria-label={`Theme: ${theme}. Change theme`} title={`Theme: ${theme}`}>
-              <svg viewBox="0 0 16 16" className="h-4 w-4" aria-hidden>
-                <circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" strokeWidth={1.4} />
-                <path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor" />
-              </svg>
-            </button>
             <button className="btn hidden h-10 w-10 justify-center px-0 sm:inline-flex" onClick={() => setHelp(true)} aria-label="Keyboard shortcuts">
               ?
             </button>

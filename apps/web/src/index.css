@@ -3,65 +3,12 @@
 /*
  * FraudLens is an investigator's case desk. Every flagged payment is a case file on the desk:
  * the model's evidence is laid out as exhibits, and the analyst closes the case with a rubber
- * stamp. Paper and fountain-pen ink by day, a graphite desk under a lamp by night.
+ * stamp, on a graphite desk under a lamp.
  *
  * Colour has one job each: ink blue is focus and selection; stamp red, ledger green and ochre
  * only ever mean fraud / declined, cleared / approved and held. Manila marks case tabs.
  */
 :root {
-  --bg: #efebe1;
-  --desk: #e6e0d2;
-  --panel: #fbf9f4;
-  --panel-2: #f3efe5;
-  --line: #ddd5c3;
-  --line-strong: #c3b9a3;
-  --ink: #1b1912;
-  --muted: #595244;
-  --faint: #655e4e;
-  --accent: #2b45c9;
-  --accent-soft: rgba(43, 69, 201, 0.09);
-  --accent-ink: #ffffff;
-  --ok: #126640;
-  --ok-soft: rgba(23, 115, 74, 0.1);
-  --warn: #805000;
-  --warn-soft: rgba(166, 107, 0, 0.12);
-  --bad: #b8231b;
-  --bad-soft: rgba(184, 35, 27, 0.09);
-  --manila: #e8d6a6;
-  --manila-ink: #4a3b12;
-  --glass: rgba(251, 249, 244, 0.82);
-  --shadow: 0 1px 0 rgba(27, 25, 18, 0.06), 0 18px 40px -28px rgba(27, 25, 18, 0.35);
-  --spring: linear(0, 0.006, 0.025 2.8%, 0.101 6.1%, 0.539 18.9%, 0.721 25.3%, 0.849 31.5%, 0.937 38.1%, 0.968 41.8%, 0.991 45.7%, 1.006 50.1%, 1.015 55%, 1.017 63.9%, 1.001 85.9%, 1);
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0d0f13;
-    --desk: #111318;
-    --panel: #171a20;
-    --panel-2: #1d2027;
-    --line: #2a2e37;
-    --line-strong: #3b404b;
-    --ink: #eee9dc;
-    --muted: #b0a998;
-    --faint: #9a9484;
-    --accent: #93a6ff;
-    --accent-soft: rgba(147, 166, 255, 0.13);
-    --accent-ink: #0d1233;
-    --ok: #57d69c;
-    --ok-soft: rgba(87, 214, 156, 0.12);
-    --warn: #f0b54f;
-    --warn-soft: rgba(240, 181, 79, 0.13);
-    --bad: #ff7466;
-    --bad-soft: rgba(255, 116, 102, 0.13);
-    --manila: #3b3320;
-    --manila-ink: #f1dfa8;
-    --glass: rgba(17, 19, 24, 0.82);
-    --shadow: 0 1px 0 rgba(0, 0, 0, 0.5), 0 24px 48px -30px rgba(0, 0, 0, 0.9);
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
   --bg: #0d0f13;
   --desk: #111318;
   --panel: #171a20;
@@ -348,17 +295,9 @@ body {
   font-size: clamp(1.8rem, 6cqi, 3.2rem);
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  mix-blend-mode: multiply;
+  mix-blend-mode: screen;
   animation: stamp-down 0.42s var(--spring) both;
   transform: translate(-50%, -50%) rotate(-11deg);
-}
-:root[data-theme="dark"] .verdict-stamp {
-  mix-blend-mode: screen;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .verdict-stamp {
-    mix-blend-mode: screen;
-  }
 }
 
 /* Cases slide between each other with the View Transitions API where it exists. */
