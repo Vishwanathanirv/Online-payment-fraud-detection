@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api, inr, nice, pct, type ModelInfo } from "../api";
+import bench from "../../../../docs/benchmark.json";
 import { Kpi, LineChart, Panel } from "../components";
 import { usePoll } from "../hooks";
 
@@ -12,15 +13,16 @@ export function Model() {
   const g = r.models.gbdt;
   const c = g.confusion;
   return (
-    <div className="space-y-5">
+    <div className="space-y-8">
       <div>
-        <h1 className="display text-[2rem] font-bold leading-tight">Model performance</h1>
+        <p className="label">Forensics · held-out test window</p>
+        <h1 className="display mt-2 text-[clamp(2.2rem,5vw,3.1rem)] font-medium leading-[1.02]">Lab report</h1>
         <p className="mt-2 text-[0.95rem] text-muted">
           Evaluated on the last {Math.round(r.data.days * 0.15)} days of data the model never saw ({r.data.test.toLocaleString("en-IN")} transactions, {r.data.testFraud} fraud). Model{" "}
           <span className="font-mono text-xs">{data.version}</span>, {data.trees} trees, explained with {data.explainer ?? "TreeSHAP"}.
         </p>
       </div>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-6 lg:grid-cols-5">
         <Kpi label="PR-AUC" value={g.prAuc.toFixed(3)} sub="the key metric for rare fraud" tone="accent" />
         <Kpi label="ROC-AUC" value={g.rocAuc.toFixed(3)} />
         <Kpi label="Recall" value={pct(g.recall)} sub={`precision ${pct(g.precision)}`} />
@@ -61,6 +63,41 @@ export function Model() {
         </Panel>
       </div>
 
+      <Panel title="Second opinion: real card data" action={<a className="text-xs font-semibold text-accent underline-offset-4 hover:underline" href="https://github.com/Vishwanathanirv/online-payment-fraud-detection/blob/main/docs/benchmark.md">How it was measured</a>}>
+        <p className="px-4 pt-3 text-sm text-muted">
+          The same from-scratch models on {bench.dataset.rows.toLocaleString("en-IN")} real European card payments ({bench.dataset.name.replace(/ \(.*/, "")}, {bench.dataset.licence}). Split by time; tuned on validation; tested once on the last {bench.test.payments.toLocaleString("en-IN")} payments ({bench.test.fraud} fraud). Each alert costs €{bench.protocol.reviewCostEur} to review; each missed fraud costs its amount.
+        </p>
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full min-w-[34rem] text-sm">
+            <thead>
+              <tr className="label text-left">
+                <th className="px-4 py-2 font-medium">Model</th>
+                <th className="px-2 py-2 text-right font-medium">PR-AUC (95% CI)</th>
+                <th className="px-2 py-2 text-right font-medium">Recall @ 0.1% FPR</th>
+                <th className="px-2 py-2 text-right font-medium">Alerts</th>
+                <th className="px-4 py-2 text-right font-medium">Saved vs no model</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bench.results.map((m) => (
+                <tr key={m.model} className="border-t border-line">
+                  <td className="px-4 py-2.5">{m.model}</td>
+                  <td className="px-2 py-2.5 text-right font-mono tabular-nums">
+                    {m.prAuc.toFixed(3)} <span className="text-faint">({m.prAucCi[0].toFixed(2)}–{m.prAucCi[1].toFixed(2)})</span>
+                  </td>
+                  <td className="px-2 py-2.5 text-right font-mono tabular-nums">{pct(m.recallAt01Fpr)}</td>
+                  <td className="px-2 py-2.5 text-right font-mono tabular-nums">{m.alerts}</td>
+                  <td className="px-4 py-2.5 text-right font-mono tabular-nums">€{Math.round(m.savedVsNoModel).toLocaleString("en-IN")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="px-4 pb-4 pt-2 text-xs text-faint">
+          Trees and logistic regression are statistically tied here: the PCA features are nearly linear, and the data has no card or device IDs for the behavioural features that give the trees their edge on the desk's own traffic.
+        </p>
+      </Panel>
+
       <div className="grid gap-5 lg:grid-cols-2">
         <Panel title="Model comparison (same alert volume)">
           <div className="overflow-x-auto">
@@ -79,7 +116,7 @@ export function Model() {
                   <tr key={k} className="border-t border-line">
                     <td className="px-4 py-2.5">
                       {NAMES[k]}
-                      {k === "gbdt" && <span className="ml-2 rounded bg-accent px-1.5 py-0.5 text-[10px] font-semibold uppercase text-accent-ink">in production</span>}
+                      {k === "gbdt" && <span className="stamp ml-2 text-accent">in production</span>}
                     </td>
                     <td className="px-2 py-2.5 text-right font-mono tabular-nums">{r.models[k].prAuc.toFixed(3)}</td>
                     <td className="px-2 py-2.5 text-right font-mono tabular-nums">{r.models[k].rocAuc.toFixed(3)}</td>

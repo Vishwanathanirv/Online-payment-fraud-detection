@@ -3,11 +3,17 @@ import { expect, test } from "@playwright/test";
 test("every view opens without errors", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  for (const [path, heading] of [["/", "Case desk"], ["/rings", "Fraud rings"], ["/model", "Model performance"], ["/drift", "Data drift"], ["/try", "Try a payment"]]) {
+  for (const [path, heading] of [["/", "Case desk"], ["/rings", "Ring board"], ["/model", "Lab report"], ["/drift", "Drift watch"], ["/try", "Test bench"]]) {
     await page.goto(path);
     await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
   }
   expect(errors).toEqual([]);
+});
+
+test("the lab report shows the benchmark on real card data", async ({ page }) => {
+  await page.goto("/model");
+  await expect(page.getByText("Second opinion: real card data")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("cell", { name: "Logistic regression" }).first()).toBeVisible();
 });
 
 test("case desk: stamp cases with the keyboard and the next file opens", async ({ page }) => {
@@ -57,7 +63,7 @@ test("the command menu switches views and runs actions", async ({ page }) => {
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/drift$/);
   await page.keyboard.press("5");
-  await expect(page.getByRole("heading", { level: 1, name: "Try a payment" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Test bench" })).toBeVisible();
   await page.keyboard.press("?");
   await expect(page.getByRole("dialog", { name: "Keyboard shortcuts" })).toBeVisible();
 });

@@ -35,12 +35,12 @@ export function RiskBar({ p, width = 72 }: { p: number; width?: number }) {
 export function Kpi({ label, value, sub, tone }: { label: string; value: ReactNode; sub?: ReactNode; tone?: "ok" | "warn" | "bad" | "accent" }) {
   const color = tone ? `var(--${tone})` : undefined;
   return (
-    <div className="rounded-[14px] border border-line bg-panel px-4 py-3">
+    <div className="border-t border-line-strong pt-3">
       <div className="label">{label}</div>
-      <div className="display mt-1 text-[1.5rem] font-bold leading-tight tabular-nums" style={{ color }}>
+      <div className="display mt-1.5 text-[clamp(1.7rem,3.2vw,2.3rem)] font-medium leading-none tabular-nums" style={{ color }}>
         {value}
       </div>
-      {sub && <div className="mt-0.5 text-xs text-faint">{sub}</div>}
+      {sub && <div className="mt-1.5 text-xs text-faint">{sub}</div>}
     </div>
   );
 }
@@ -50,7 +50,7 @@ export function Panel({ title, action, children, className = "" }: { title?: Rea
     <section className={`panel ${className}`}>
       {(title || action) && (
         <div className="panel-head flex items-center justify-between gap-3 px-4 py-2.5">
-          <h2 className="text-[0.95rem] font-semibold">{title}</h2>
+          <h2 className="label !text-ink">{title}</h2>
           {action}
         </div>
       )}

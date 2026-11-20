@@ -53,15 +53,16 @@ export function Rings() {
 
   const high = rings.filter((r) => r.risk >= 0.5);
   return (
-    <div className="space-y-5">
+    <div className="space-y-8">
       <div>
-        <h1 className="display text-[2rem] font-bold leading-tight">Fraud rings</h1>
+        <p className="label">Evidence board · shared devices</p>
+        <h1 className="display mt-2 text-[clamp(2.2rem,5vw,3.1rem)] font-medium leading-[1.02]">Ring board</h1>
         <p className="mt-2 max-w-3xl text-[0.95rem] text-muted">
           One stolen card looks like a customer having an odd day. Many cards cashed out from the same phone look like a crew. Cards and devices from the last {data?.windowHours ?? 6} hours are joined into a graph, and every group of three or more cards linked
           through shared devices is scored.
         </p>
       </div>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-6 lg:grid-cols-4">
         <Kpi label="Rings found" value={rings.length} sub={`${high.length} high risk`} tone={high.length ? "bad" : undefined} />
         <Kpi label="Cards involved" value={rings.reduce((a, r) => a + r.cards, 0)} />
         <Kpi label="Money through rings" value={inr(rings.reduce((a, r) => a + r.amount, 0))} />
@@ -200,7 +201,10 @@ function RingGraph({ ring }: { ring: Ring }) {
           const a = pos.get(l.source)!;
           const b = pos.get(l.target)!;
           const toDevice = l.target.startsWith("device:");
-          return <line key={`${l.source}-${l.target}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={toDevice ? "var(--accent)" : "var(--line)"} strokeWidth={toDevice ? 1.6 : 1} opacity={toDevice ? 0.8 : 1} />;
+          // Red string between pinned cards and the device they share; faint pencil to merchants.
+          const sag = Math.hypot(b.x - a.x, b.y - a.y) * 0.12;
+          const d = `M${a.x},${a.y} Q${(a.x + b.x) / 2},${(a.y + b.y) / 2 + sag} ${b.x},${b.y}`;
+          return <path key={`${l.source}-${l.target}`} d={d} fill="none" stroke={toDevice ? "var(--bad)" : "var(--line-strong)"} strokeWidth={toDevice ? 1.5 : 1} strokeDasharray={toDevice ? undefined : "2 3"} opacity={toDevice ? 0.85 : 1} />;
         })}
         {ring.nodes.map((n) => {
           const { x, y } = pos.get(n.id)!;
@@ -208,7 +212,9 @@ function RingGraph({ ring }: { ring: Ring }) {
           if (n.kind === "device")
             return (
               <g key={n.id}>
-                <rect x={x - 10} y={y - 10} width={20} height={20} rx={4} fill="var(--accent)" />
+                <rect x={x - 11} y={y - 11} width={22} height={22} rx={2} fill="var(--manila)" stroke="var(--manila-ink)" strokeWidth={1} />
+                <path d={`M${x - 4},${y + 3}h8v-8h-8z`} fill="none" stroke="var(--manila-ink)" strokeWidth={1.2} />
+                <circle cx={x} cy={y - 11} r={3} fill="var(--bad)" />
                 <text x={x} y={y + 24} textAnchor="middle" fontSize={10} fill="var(--ink)" className="font-mono">
                   {short(n.id)}
                 </text>
@@ -233,7 +239,7 @@ function RingGraph({ ring }: { ring: Ring }) {
       </svg>
       <div className="flex flex-wrap gap-4 pb-3 text-xs text-muted">
         <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-accent" /> device
+          <span className="h-2.5 w-2.5 rounded-[2px] border border-manila-ink bg-manila" /> shared device · <span className="inline-block h-px w-4 bg-bad align-middle" /> red string: same device
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full border border-muted" /> card

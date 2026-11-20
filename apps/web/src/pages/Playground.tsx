@@ -82,9 +82,10 @@ export function Playground() {
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-8">
       <div>
-        <h1 className="display text-[2rem] font-bold leading-tight">Try a payment</h1>
+        <p className="label">Bench · nothing here is saved</p>
+        <h1 className="display mt-2 text-[clamp(2.2rem,5vw,3.1rem)] font-medium leading-[1.02]">Test bench</h1>
         <p className="mt-2 text-[0.95rem] text-muted">Score a payment yourself, or upload a CSV batch. Nothing here is saved.</p>
       </div>
       <div className="flex flex-wrap gap-2">

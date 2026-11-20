@@ -8,9 +8,10 @@ const tone = (l: string) => (l === "significant" ? "var(--bad)" : l === "moderat
 export function DriftPage() {
   const { data } = usePoll<Drift>("/api/drift", 5000);
   return (
-    <div className="space-y-5">
+    <div className="space-y-8">
       <div>
-        <h1 className="display text-[2rem] font-bold leading-tight">Data drift</h1>
+        <p className="label">Watch log · live traffic vs training</p>
+        <h1 className="display mt-2 text-[clamp(2.2rem,5vw,3.1rem)] font-medium leading-[1.02]">Drift watch</h1>
         <p className="mt-2 max-w-2xl text-[0.95rem] text-muted">
           Compares live traffic with the data the model was trained on, using the Population Stability Index (PSI). When features drift, the model's accuracy quietly drops, so this is the signal to retrain.
         </p>
