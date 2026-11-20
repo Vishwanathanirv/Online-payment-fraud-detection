@@ -19,6 +19,10 @@ Your file never leaves the browser, and the page shows the proof: a count of net
 | Is this rule worth adding? | **Rules.** Write a rule (`amount > 500 and country in (NG, GH)`, `count_1h(device) >= 4`) and see, as you type, what it matches and what it adds on top of the policy: fraud newly stopped, genuine customers newly declined, reviews, and the net in money. Rules can join the policy, and every section then counts them |
 | Are recent results flattered by fraud not reported yet? | **Labels.** From a reported-at column, or a disputes export joined by transaction id, the report-delay curve, the fraud each recent week still has to show, and a switch to judge everything on mature payments only |
 | Are we near a card-network monitoring programme? | **Disputes.** Visa VAMP and Mastercard ECM / HECM ratios month by month, as recorded and under the policy on screen, with every threshold editable |
+| Does a 20% score mean one in five? | **Calibration.** Score bands, finer at the top, with predicted against seen fraud and the expected calibration error |
+| Is the challenger better? | **Models.** Every score column at its own cheapest lines with the same costs, team and rules, ranked by total cost; one click switches |
+| Has anything moved? | **Drift.** Earlier half against later: population stability index of the score, fraud rate, amounts and what the policy did |
+| How do I sign this off? | **Decision record.** A text file of the data, model, lines, rules, team, costs and outcome, with a link that reopens the settings |
 | What does it cost in my currency? | **Currency.** 30 currencies at European Central Bank reference rates, with the date shown |
 
 Thresholds and staffing are connected: the review band is the team's workload, so a line that looks cheap on paper shows its real cost once reviews start timing out. No commercial fraud tool found during research links the two.
