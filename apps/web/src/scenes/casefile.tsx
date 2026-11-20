@@ -62,7 +62,7 @@ function CaseFile({ d, model, row, line, go }: { d: Dataset; model: CaseModel; r
 
   return (
     <div className="mx-auto max-w-[80rem] px-4 sm:px-10">
-      <header className="arrive flex flex-wrap items-end justify-between gap-x-8 gap-y-4 pt-10 md:pt-14">
+      <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 pt-10 md:pt-14">
         <div>
           <p className="eyebrow">
             Case file · {at + 1} of {rows.length} in the stack · real payment, ULB / Worldline test window
@@ -89,7 +89,7 @@ function CaseFile({ d, model, row, line, go }: { d: Dataset; model: CaseModel; r
 
       {/* The folder, open on the desk. */}
       <article className="arrive arrive-2 relative mt-10 rounded-[6px] bg-[#8c7a55] p-2 shadow-[0_50px_90px_-30px_rgba(0,0,0,0.95)] sm:p-3" aria-label={`Case ${caseNumber(row)}`}>
-        <span className="absolute -top-7 left-6 rounded-t-[8px] bg-[#8c7a55] px-5 pb-2 pt-1.5 font-mono text-[12px] tracking-[0.14em] text-[#2b2416]">{caseNumber(row)}</span>
+        <span className="absolute -top-7 left-6 rounded-t-[8px] bg-[var(--paper-2)] px-5 pb-2 pt-1.5 font-mono text-[12px] tracking-[0.14em] text-ink">{caseNumber(row)}</span>
         <div className="grid gap-2 sm:gap-3 lg:grid-cols-[0.85fr_1.15fr]">
           <section className="paper relative rounded-[3px] p-6 sm:p-9" aria-labelledby="facts">
             <h2 id="facts" className="eyebrow">

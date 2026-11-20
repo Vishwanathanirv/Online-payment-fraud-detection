@@ -273,6 +273,7 @@ test("a file without the needed columns says which", async ({ page }) => {
 test("settings travel in the link", async ({ page }) => {
   await page.goto("/ledger#a=5&min=10&to=30&o=oldest&fm=2&rc=8&dc=20&cur=GBP");
   await expect(page.locator("h1")).toContainText("£");
+  await page.locator("#staffing").scrollIntoViewIfNeeded();
   await expect(page.locator("#staffing")).toContainText("oldest");
   expect(await money(page, "#staffing [aria-label='analysts'] span")).toBe(5);
 });

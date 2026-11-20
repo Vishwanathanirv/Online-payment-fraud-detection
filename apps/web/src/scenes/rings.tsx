@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { loadRings, unmask, type Board, type RingPayment } from "../engine/rings";
 import { useDesk } from "../store";
 
@@ -87,6 +87,9 @@ export default function RingScene() {
 function RingBoard({ board, autoplay }: { board: Board; autoplay: boolean }) {
   const wrap = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(1000);
+  useLayoutEffect(() => {
+    if (wrap.current) setWidth(wrap.current.clientWidth);
+  }, []);
   useEffect(() => {
     const ro = new ResizeObserver(([e]) => setWidth(e.contentRect.width));
     if (wrap.current) ro.observe(wrap.current);
@@ -157,7 +160,7 @@ function RingBoard({ board, autoplay }: { board: Board; autoplay: boolean }) {
 
   return (
     <div className="mx-auto max-w-[80rem] px-4 sm:px-10">
-      <header className="arrive pt-10 md:pt-14">
+      <header className="pt-10 md:pt-14">
         <p className="eyebrow">Ring board · six hours of simulated payments, each scored on its own by the trained model</p>
         <h1 className="display mt-4 max-w-[24ch] text-[clamp(2rem,4.4vw,3.4rem)]" aria-live="polite">
           {phase < 3 ? (
@@ -191,7 +194,7 @@ function RingBoard({ board, autoplay }: { board: Board; autoplay: boolean }) {
         <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox={`0 0 ${L.W} ${L.H}`} preserveAspectRatio="none" aria-hidden>
           {/* Ring outlines, drawn in marker once the verdict is in. */}
           {rings.map((g) => (
-            <ellipse key={`o${g.id}`} cx={g.at.x} cy={g.at.y} rx={wide ? 160 : 168} ry={wide ? 128 : 120} fill="none" stroke="var(--string)" strokeWidth="2.5" strokeDasharray="1.05 1" pathLength={1} strokeDashoffset={phase >= 3 ? 0 : 1} style={{ transition: "stroke-dashoffset 1s var(--ease-out)" }} vectorEffect="non-scaling-stroke" opacity=".8" />
+            <ellipse key={`o${g.id}`} cx={g.at.x} cy={g.at.y} rx={wide ? 160 : 168} ry={wide ? 128 : 120} fill="none" stroke="var(--string)" strokeWidth="2.5" style={{ opacity: phase >= 3 ? 0.8 : 0, transition: "opacity 0.8s var(--ease-out)" }} vectorEffect="non-scaling-stroke" />
           ))}
           {/* The string: from each card to the device it was used on. */}
           {phase >= 1 &&

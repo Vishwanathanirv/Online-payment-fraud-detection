@@ -26,12 +26,12 @@ const TxInput = z.object({
   amount: z.number().positive().max(10_000_000),
   channel: z.enum(CHANNELS),
   deviceId: z.string().trim().min(1).max(64).default("device_demo"),
-  lat: z.number().min(-90).max(90).default(13.08),
-  lon: z.number().min(-180).max(180).default(80.27),
+  lat: z.number().min(-90).max(90).default(19.08),
+  lon: z.number().min(-180).max(180).default(72.88),
   country: z.string().trim().length(2).toUpperCase().default("IN"),
   ts: z.number().int().positive().optional(),
-  homeLat: z.number().min(-90).max(90).default(13.08),
-  homeLon: z.number().min(-180).max(180).default(80.27),
+  homeLat: z.number().min(-90).max(90).default(19.08),
+  homeLon: z.number().min(-180).max(180).default(72.88),
   cardAgeDays: z.number().min(0).max(20_000).default(400),
 });
 

@@ -21,7 +21,18 @@ export type Ranking = {
   totalFraud: number;
 };
 
+const rankings = new WeakMap<number[], Ranking>();
+
+/** The ranking for a dataset and model, built once and shared by every scene. */
 export function ranking(d: Dataset, model: string): Ranking {
+  const cached = rankings.get(d.score[model]);
+  if (cached) return cached;
+  const r = build(d, model);
+  rankings.set(d.score[model], r);
+  return r;
+}
+
+function build(d: Dataset, model: string): Ranking {
   const score = d.score[model];
   const n = score.length;
   const order = Int32Array.from(score.map((_, i) => i)).sort((a, b) => score[b] - score[a] || a - b);

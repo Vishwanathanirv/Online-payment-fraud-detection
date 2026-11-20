@@ -7,7 +7,7 @@ import { cheapest, evaluate, type Costs, type Outcome, type Staffing, type Thres
 import { dimensions, segment, type Dimension } from "../engine/segments";
 import { Import } from "../import";
 import { useDesk } from "../store";
-import { Amount, Choice, Count, Inline, pct, Section, Stat, useMoney } from "../ui";
+import { Amount, Choice, Count, Deferred, Inline, pct, Section, Stat, useMoney } from "../ui";
 
 /* ───────────── thresholds */
 
@@ -264,6 +264,7 @@ const FEATURE = (name: string) => (name === "log amount" ? "Amount" : name === "
 
 function Cases({ d, model, o }: { d: Dataset; model: string; o: Outcome }) {
   const m = useMoney();
+  const { go } = useDesk();
   const [filter, setFilter] = useState<"all" | "fraud" | "genuine">("all");
   const [open, setOpen] = useState<number | null>(null);
   const [shown, setShown] = useState(20);
@@ -320,13 +321,20 @@ function Cases({ d, model, o }: { d: Dataset; model: string; o: Outcome }) {
             const why = explainable ? d.why[i] : undefined;
             const max = why ? Math.max(...why.map(([, v]) => Math.abs(v))) : 1;
             return [
-              <tr key={i} className={`queue-row border-t border-rule-soft ${why ? "cursor-pointer" : ""}`} onClick={() => why && setOpen(open === i ? null : i)} aria-expanded={why ? open === i : undefined}>
+              <tr key={i} className={`queue-row border-t border-rule-soft ${why ? "cursor-pointer" : ""}`} onClick={() => why && setOpen(open === i ? null : i)}>
                 <td className="figure py-3 text-ash">{d.id ? d.id[i] : timeLabel(d, d.t[i])}</td>
                 <td className="figure py-3 text-right">{m.fmt(d.amount[i] * m.k, 2)}</td>
                 <td className="figure py-3 text-right text-ash">{prob ? pct(sc[i], sc[i] < 0.1 ? 1 : 0) : sc[i].toFixed(2)}</td>
                 <td className={`py-3 pl-6 ${tone}`}>
                   {text}
-                  {why && <span className="ml-2 text-smoke">{open === i ? "−" : "+"}</span>}
+                  {why && (
+                    <button type="button" className="ml-2 text-smoke hover:text-bone" aria-expanded={open === i} aria-label={open === i ? "Hide why" : "Show why"} onClick={(e) => {
+                      e.stopPropagation();
+                      setOpen(open === i ? null : i);
+                    }}>
+                      {open === i ? "−" : "+"}
+                    </button>
+                  )}
                 </td>
               </tr>,
               open === i && why ? (
@@ -348,6 +356,11 @@ function Cases({ d, model, o }: { d: Dataset; model: string; o: Outcome }) {
                       ))}
                     </ul>
                     <p className="mt-3 text-[13px] text-smoke">TreeSHAP, log-odds. The public data names its fields only as anonymous components.</p>
+                    {d.x?.[i] && (
+                      <button type="button" className="link mt-3 text-[14px]" onClick={() => go(`/case/${i}`)}>
+                        Open the case file, with what would have cleared it →
+                      </button>
+                    )}
                   </td>
                 </tr>
               ) : null,
@@ -392,7 +405,7 @@ export default function Ledger() {
           </button>
         ))}
       </nav>
-      <section id="overview" className="arrive scroll-mt-28 pb-20 pt-14 md:pt-20">
+      <section id="overview" className="scroll-mt-28 pb-20 pt-14 md:pt-20">
         <p className="eyebrow">
           Ledger · {d.kind === "public" ? "ULB / Worldline real card payments, test window" : `your file, ${d.currency}`} · {sum.payments.toLocaleString("en")} payments · {span}
         </p>
@@ -445,19 +458,27 @@ export default function Ledger() {
       </section>
 
       <Section id="thresholds" kicker="Thresholds" title="Where to draw the lines.">
-        <ThresholdsModule d={d} model={model} th={th} setTh={setTh} costs={costs} setCosts={setCosts} staffing={staffing} o={o} />
+        <Deferred>
+          <ThresholdsModule d={d} model={model} th={th} setTh={setTh} costs={costs} setCosts={setCosts} staffing={staffing} o={o} />
+        </Deferred>
       </Section>
 
       <Section id="staffing" kicker="Staffing" title="Can the team keep up?">
-        <StaffingModule d={d} model={model} th={th} costs={costs} staffing={staffing} setStaffing={setStaffing} o={o} />
+        <Deferred>
+          <StaffingModule d={d} model={model} th={th} costs={costs} staffing={staffing} setStaffing={setStaffing} o={o} />
+        </Deferred>
       </Section>
 
       <Section id="segments" kicker="Segments" title="Where the fraud is.">
-        <SegmentsModule d={d} o={o} />
+        <Deferred>
+          <SegmentsModule d={d} o={o} />
+        </Deferred>
       </Section>
 
       <Section id="cases" kicker="Cases" title="Everything the policy touched.">
-        <Cases d={d} model={model} o={o} />
+        <Deferred>
+          <Cases d={d} model={model} o={o} />
+        </Deferred>
       </Section>
 
       <Section id="data" kicker="Your data" title="Run it on your own transactions.">
