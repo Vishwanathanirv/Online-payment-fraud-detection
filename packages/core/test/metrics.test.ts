@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { averagePrecision, bestF1Threshold, confusion, costOptimalThreshold, rates, rocAuc } from "../src/metrics";
+import { averagePrecision, bestF1Threshold, confusion, costOptimalThreshold, rates, recallAtFpr, rocAuc } from "../src/metrics";
 import { expectedCalibrationError, fitPlatt, calibrate } from "../src/calibration";
 import { buildReference, psi } from "../src/drift";
 import { Rng } from "../src/rng";
@@ -53,5 +53,31 @@ describe("drift", () => {
     const ref = buildReference(base);
     expect(psi(ref, Array.from({ length: 5000 }, () => r.normal(0, 1)))).toBeLessThan(0.05);
     expect(psi(ref, Array.from({ length: 5000 }, () => r.normal(1.5, 1)))).toBeGreaterThan(0.25);
+  });
+});
+
+describe("metrics on large and tied inputs", () => {
+  it("recall at a fixed FPR is measured on every threshold, not on the chart's downsampled curve", () => {
+    // 100,000 negatives and 50 positives; the positives outrank all but 20 negatives (FPR 0.02%).
+    const scores: number[] = [];
+    const labels: number[] = [];
+    for (let i = 0; i < 100_000; i++) {
+      scores.push(i < 20 ? 2 + i : i / 100_000);
+      labels.push(0);
+    }
+    for (let i = 0; i < 50; i++) {
+      scores.push(1.5);
+      labels.push(1);
+    }
+    expect(recallAtFpr(scores, labels, 0.001)).toBe(1);
+    expect(recallAtFpr(scores, labels, 0.0001)).toBe(0);
+  });
+
+  it("average precision does not depend on the order of tied scores", () => {
+    const a = averagePrecision([0.9, 0.5, 0.5, 0.1], [1, 1, 0, 0]);
+    const b = averagePrecision([0.9, 0.5, 0.5, 0.1], [1, 0, 1, 0]);
+    expect(a).toBeCloseTo(b, 12);
+    // scikit-learn: thresholds 0.9 (P=1, R=.5), 0.5 (P=2/3, R=1) -> 0.5·1 + 0.5·2/3
+    expect(a).toBeCloseTo(0.5 + 0.5 * (2 / 3), 12);
   });
 });

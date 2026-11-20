@@ -25,17 +25,23 @@ export function rocAuc(scores: number[], labels: number[]): number {
   return pos && neg ? (rankSum - (pos * (pos + 1)) / 2) / (pos * neg) : NaN;
 }
 
-/** Average precision (area under the precision-recall curve, step-wise). */
+/**
+ * Average precision (area under the precision-recall curve, step-wise), the same definition as
+ * scikit-learn: sum over distinct thresholds of (recall gained) × (precision at that threshold).
+ * Payments with equal scores are one threshold, so the result never depends on input order.
+ */
 export function averagePrecision(scores: number[], labels: number[]): number {
   const p = sortedPairs(scores, labels);
   const totalPos = labels.reduce((a, b) => a + b, 0);
   let tp = 0;
   let ap = 0;
-  for (let i = 0; i < p.length; i++) {
-    if (p[i].y) {
-      tp++;
-      ap += tp / (i + 1);
-    }
+  for (let i = 0; i < p.length; ) {
+    let j = i;
+    let gained = 0;
+    while (j < p.length && p[j].s === p[i].s) gained += p[j++].y ? 1 : 0;
+    tp += gained;
+    ap += gained * (tp / j);
+    i = j;
   }
   return totalPos ? ap / totalPos : NaN;
 }
@@ -46,7 +52,11 @@ function downsample(c: Curve, max = 120): Curve {
   return Array.from({ length: max }, (_, i) => c[Math.round(i * step)]);
 }
 
-export function rocCurve(scores: number[], labels: number[]): Curve {
+/** ROC points for charts (downsampled). Use `fullRocCurve` for anything that is measured. */
+export const rocCurve = (scores: number[], labels: number[]): Curve => downsample(fullRocCurve(scores, labels));
+
+/** Every ROC point, one per distinct score. */
+export function fullRocCurve(scores: number[], labels: number[]): Curve {
   const p = sortedPairs(scores, labels);
   const P = labels.reduce((a, b) => a + b, 0);
   const N = labels.length - P;
@@ -58,10 +68,14 @@ export function rocCurve(scores: number[], labels: number[]): Curve {
     else fp++;
     if (i === p.length - 1 || p[i + 1].s !== p[i].s) out.push({ x: fp / N, y: tp / P, t: p[i].s });
   }
-  return downsample(out);
+  return out;
 }
 
-export function prCurve(scores: number[], labels: number[]): Curve {
+/** Precision-recall points for charts (downsampled). Use `fullPrCurve` for anything that is measured. */
+export const prCurve = (scores: number[], labels: number[]): Curve => downsample(fullPrCurve(scores, labels));
+
+/** Every precision-recall point (x = recall, y = precision), one per distinct score. */
+export function fullPrCurve(scores: number[], labels: number[]): Curve {
   const p = sortedPairs(scores, labels);
   const P = labels.reduce((a, b) => a + b, 0);
   const out: Curve = [];
@@ -70,7 +84,7 @@ export function prCurve(scores: number[], labels: number[]): Curve {
     if (p[i].y) tp++;
     if (i === p.length - 1 || p[i + 1].s !== p[i].s) out.push({ x: tp / P, y: tp / (i + 1), t: p[i].s });
   }
-  return downsample(out);
+  return out;
 }
 
 export type Confusion = { tp: number; fp: number; tn: number; fn: number };
@@ -96,7 +110,7 @@ export function rates(c: Confusion) {
 /** Threshold that maximises F1. */
 export function bestF1Threshold(scores: number[], labels: number[]): { threshold: number; f1: number } {
   let best = { threshold: 0.5, f1: 0 };
-  for (const pt of prCurve(scores, labels)) {
+  for (const pt of fullPrCurve(scores, labels)) {
     const f1 = pt.x + pt.y ? (2 * pt.x * pt.y) / (pt.x + pt.y) : 0;
     if (f1 > best.f1) best = { threshold: pt.t, f1 };
   }
@@ -123,8 +137,9 @@ export function costOptimalThreshold(scores: number[], labels: number[], amounts
   return best;
 }
 
+/** Highest recall at a threshold whose false-positive rate is at most `maxFpr` (measured on every threshold). */
 export function recallAtFpr(scores: number[], labels: number[], maxFpr: number): number {
   let best = 0;
-  for (const pt of rocCurve(scores, labels)) if (pt.x <= maxFpr) best = Math.max(best, pt.y);
+  for (const pt of fullRocCurve(scores, labels)) if (pt.x <= maxFpr) best = Math.max(best, pt.y);
   return best;
 }

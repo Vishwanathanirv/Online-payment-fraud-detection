@@ -1,0 +1,231 @@
+/**
+ * Reproducible benchmark on real, public card-payment data.
+ *
+ * Dataset: "Credit Card Fraud Detection" by the Machine Learning Group of ULB (Université Libre
+ * de Bruxelles) and Worldline: 284,807 European card payments over two days in September 2013,
+ * 492 of them fraud. Features V1–V28 are PCA components (the raw fields are confidential), plus
+ * Time (seconds since the first payment) and Amount. Published under the Open Database License
+ * (ODbL 1.0). We download the copy that the TensorFlow team hosts for its public tutorial
+ * (no login needed) and check its SHA-256 before use.
+ *
+ * Protocol (no peeking at the future):
+ *   - sort by Time and cut by time into train (first 60%), validation (next 20%), test (last 20%);
+ *     payments that share a timestamp always land in the same split
+ *   - train on train; early stopping, Platt calibration and the alert threshold use validation only
+ *   - report everything on the untouched test window
+ *
+ * Run: `npm run benchmark` (downloads ~150 MB to data/ the first time). Writes
+ * docs/benchmark.json and prints a Markdown table.
+ */
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  anomalyScore,
+  averagePrecision,
+  calibrate,
+  confusion,
+  costOptimalThreshold,
+  expectedCalibrationError,
+  fitPlatt,
+  predictGbdt,
+  predictLogReg,
+  rates,
+  recallAtFpr,
+  Rng,
+  rocAuc,
+  trainGbdt,
+  trainIForest,
+  trainLogReg,
+} from "../packages/core/src/index";
+
+const URL = "https://storage.googleapis.com/download.tensorflow.org/data/creditcard.csv";
+const SHA256 = "76274b691b16a6c49d3f159c883398e03ccd6d1ee12d9d8ee38f4b4b98551a89";
+const FILE = "data/creditcard.csv";
+/** What an analyst review of one alert costs, in euros (the dataset's currency). */
+const REVIEW_COST = Number(process.env.REVIEW_COST ?? 5);
+const BOOTSTRAP = Number(process.env.BOOTSTRAP ?? 200);
+
+async function load(): Promise<{ time: number[]; X: number[][]; amount: number[]; y: number[] }> {
+  if (!existsSync(FILE)) {
+    mkdirSync("data", { recursive: true });
+    console.log(`· downloading ${URL}`);
+    const res = await fetch(URL);
+    if (!res.ok) throw new Error(`download failed: HTTP ${res.status}`);
+    writeFileSync(FILE, Buffer.from(await res.arrayBuffer()));
+  }
+  const buf = readFileSync(FILE);
+  const sha = createHash("sha256").update(buf).digest("hex");
+  if (sha !== SHA256) throw new Error(`${FILE} has SHA-256 ${sha}, expected ${SHA256}. Delete it and run again.`);
+  const lines = buf.toString("utf8").trim().split("\n");
+  const header = lines[0].split(",").map((h) => h.replaceAll('"', ""));
+  const iTime = header.indexOf("Time");
+  const iAmount = header.indexOf("Amount");
+  const iClass = header.indexOf("Class");
+  const rows = lines.slice(1).map((l) => l.split(","));
+  // Stable sort by time (the file is already in time order; this makes it a guarantee).
+  const order = rows.map((_, i) => i).sort((a, b) => Number(rows[a][iTime]) - Number(rows[b][iTime]) || a - b);
+  const time: number[] = [];
+  const X: number[][] = [];
+  const amount: number[] = [];
+  const y: number[] = [];
+  for (const i of order) {
+    const r = rows[i];
+    const t = Number(r[iTime]);
+    const a = Number(r[iAmount]);
+    time.push(t);
+    amount.push(a);
+    y.push(Number(r[iClass].replaceAll('"', "")));
+    // Model inputs: V1–V28, log amount and hour of day. Time itself is left out: it only counts
+    // seconds since the start of the capture, so a model would learn the calendar, not fraud.
+    const v = header.map((h, j) => (h.startsWith("V") ? Number(r[j]) : NaN)).filter((n) => !Number.isNaN(n));
+    X.push([...v, Math.log1p(a), (t / 3600) % 24]);
+  }
+  return { time, X, amount, y };
+}
+
+/** First index whose time is >= the time at `fraction` of the rows, so equal timestamps never straddle a cut. */
+function timeCut(time: number[], fraction: number): number {
+  const t = time[Math.floor(time.length * fraction)];
+  let i = Math.floor(time.length * fraction);
+  while (i > 0 && time[i - 1] === t) i--;
+  return i;
+}
+
+type Result = {
+  model: string;
+  prAuc: number;
+  prAucCi: [number, number];
+  rocAuc: number;
+  recallAt01Fpr: number;
+  recallAt1Fpr: number;
+  alerts: number;
+  precision: number;
+  recall: number;
+  fraudAmountCaught: number;
+  cost: number;
+  savedVsNoModel: number;
+};
+
+function evaluate(model: string, s: number[], y: number[], amount: number[], threshold: number, rng: Rng): Result {
+  const c = confusion(s, y, threshold);
+  const r = rates(c);
+  let caught = 0;
+  let missed = 0;
+  let total = 0;
+  for (let i = 0; i < y.length; i++) {
+    if (!y[i]) continue;
+    total += amount[i];
+    if (s[i] >= threshold) caught += amount[i];
+    else missed += amount[i];
+  }
+  const cost = missed + (c.tp + c.fp) * REVIEW_COST;
+  // Bootstrap the test window for a 95% interval on PR-AUC (fraud is rare, so it is noisy).
+  const boots: number[] = [];
+  for (let b = 0; b < BOOTSTRAP; b++) {
+    const bs: number[] = [];
+    const by: number[] = [];
+    for (let k = 0; k < y.length; k++) {
+      const i = Math.floor(rng.next() * y.length);
+      bs.push(s[i]);
+      by.push(y[i]);
+    }
+    const ap = averagePrecision(bs, by);
+    if (!Number.isNaN(ap)) boots.push(ap);
+  }
+  boots.sort((a, b) => a - b);
+  const q = (p: number) => boots[Math.min(boots.length - 1, Math.floor(p * boots.length))];
+  return {
+    model,
+    prAuc: averagePrecision(s, y),
+    prAucCi: [q(0.025), q(0.975)],
+    rocAuc: rocAuc(s, y),
+    recallAt01Fpr: recallAtFpr(s, y, 0.001),
+    recallAt1Fpr: recallAtFpr(s, y, 0.01),
+    alerts: c.tp + c.fp,
+    precision: r.precision,
+    recall: r.recall,
+    fraudAmountCaught: total ? caught / total : 0,
+    cost,
+    savedVsNoModel: total - cost,
+  };
+}
+
+async function main() {
+  const t0 = performance.now();
+  const { time, X, amount, y } = await load();
+  const c1 = timeCut(time, 0.6);
+  const c2 = timeCut(time, 0.8);
+  const split = (a: number, b: number) => ({ X: X.slice(a, b), y: y.slice(a, b), amount: amount.slice(a, b), from: time[a], to: time[b - 1] });
+  const train = split(0, c1);
+  const valid = split(c1, c2);
+  const test = split(c2, X.length);
+  const sum = (v: number[]) => v.reduce((a, b) => a + b, 0);
+  console.log(`· ${X.length} payments · train ${train.X.length} (${sum(train.y)} fraud) · valid ${valid.X.length} (${sum(valid.y)}) · test ${test.X.length} (${sum(test.y)})`);
+
+  const { model: gbdt } = trainGbdt(train.X, train.y, { posWeight: 5, seed: 7 }, { X: valid.X, y: valid.y });
+  console.log(`· gradient-boosted trees: ${gbdt.trees.length} trees`);
+  const logreg = trainLogReg(train.X, train.y, { posWeight: 5 });
+  const iforest = trainIForest(train.X.filter((_, i) => !train.y[i]), { trees: 200 });
+
+  // Everything that is tuned is tuned on validation.
+  const models: [string, (x: number[]) => number][] = [
+    ["Gradient-boosted trees (FraudLens)", (x) => predictGbdt(gbdt, x)],
+    ["Logistic regression", (x) => predictLogReg(logreg, x)],
+    ["Isolation forest (no labels)", (x) => anomalyScore(iforest, x)],
+  ];
+  const rng = new Rng(2013);
+  const results: Result[] = [];
+  let calibration = { eceBefore: 0, eceAfter: 0 };
+  for (const [name, f] of models) {
+    const vraw = valid.X.map(f);
+    const cal = fitPlatt(vraw, valid.y);
+    const vs = vraw.map((p) => calibrate(cal, p));
+    const thr = costOptimalThreshold(vs, valid.y, valid.amount, REVIEW_COST).threshold;
+    const traw = test.X.map(f);
+    const ts = traw.map((p) => calibrate(cal, p));
+    results.push(evaluate(name, ts, test.y, test.amount, thr, rng));
+    if (results.length === 1) calibration = { eceBefore: expectedCalibrationError(traw, test.y), eceAfter: expectedCalibrationError(ts, test.y) };
+  }
+  const totalFraud = test.amount.reduce((a, v, i) => a + (test.y[i] ? v : 0), 0);
+
+  const out = {
+    dataset: {
+      name: "Credit Card Fraud Detection (ULB Machine Learning Group and Worldline)",
+      licence: "Open Database License (ODbL) 1.0",
+      source: URL,
+      sha256: SHA256,
+      rows: X.length,
+      fraud: sum(y),
+    },
+    protocol: {
+      split: "by time: first 60% train, next 20% validation (early stopping, calibration, threshold), last 20% test",
+      trainHours: [train.from / 3600, train.to / 3600],
+      validHours: [valid.from / 3600, valid.to / 3600],
+      testHours: [test.from / 3600, test.to / 3600],
+      reviewCostEur: REVIEW_COST,
+      bootstrap: BOOTSTRAP,
+    },
+    test: { payments: test.X.length, fraud: sum(test.y), fraudAmountEur: totalFraud },
+    calibration,
+    results,
+    runtimeSeconds: Math.round((performance.now() - t0) / 100) / 10,
+  };
+  mkdirSync("docs", { recursive: true });
+  writeFileSync("docs/benchmark.json", JSON.stringify(out, null, 2) + "\n");
+
+  const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
+  const eur = (v: number) => `€${Math.round(v).toLocaleString("en-US")}`;
+  console.log(`\nTest window: ${test.X.length.toLocaleString("en-US")} payments, ${sum(test.y)} fraud, ${eur(totalFraud)} of fraud. Review cost ${eur(REVIEW_COST)} per alert.\n`);
+  console.log("| Model | PR-AUC (95% CI) | ROC-AUC | Recall @ 0.1% FPR | Recall @ 1% FPR | Alerts | Precision | Recall | Fraud € caught | Cost | Saved vs no model |");
+  console.log("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+  for (const r of results)
+    console.log(
+      `| ${r.model} | ${r.prAuc.toFixed(3)} (${r.prAucCi[0].toFixed(3)}–${r.prAucCi[1].toFixed(3)}) | ${r.rocAuc.toFixed(3)} | ${pct(r.recallAt01Fpr)} | ${pct(r.recallAt1Fpr)} | ${r.alerts} | ${pct(r.precision)} | ${pct(r.recall)} | ${pct(r.fraudAmountCaught)} | ${eur(r.cost)} | ${eur(r.savedVsNoModel)} |`,
+    );
+  console.log(`\nCalibration error (GBDT, test): ${calibration.eceBefore.toFixed(4)} → ${calibration.eceAfter.toFixed(4)} · ${out.runtimeSeconds}s`);
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

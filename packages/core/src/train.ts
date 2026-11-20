@@ -5,7 +5,7 @@ import { predictGbdt, trainGbdt, type GbdtParams } from "./gbdt";
 import { PaymentSimulator } from "./generator";
 import { anomalyScore, trainIForest } from "./iforest";
 import { predictLogReg, trainLogReg } from "./linear";
-import { averagePrecision, confusion, costOptimalThreshold, prCurve, rates, recallAtFpr, rocAuc, rocCurve } from "./metrics";
+import { averagePrecision, confusion, costOptimalThreshold, fullPrCurve, prCurve, rates, recallAtFpr, rocAuc, rocCurve } from "./metrics";
 import { Rng } from "./rng";
 import type { ModelBundle, ModelMetrics, TrainingReport } from "./scorer";
 
@@ -57,7 +57,7 @@ export function trainPipeline(opts: TrainOptions = {}): ModelBundle {
   const review = costOptimalThreshold(vcal, vy, valid.map((r) => r.t.amount), reviewCost).threshold;
   // Block only when the model is very sure: the lowest threshold with >= 90% precision on validation.
   let block = 0.95;
-  for (const pt of prCurve(vcal, vy)) if (pt.y >= 0.9 && pt.t < block && pt.t > review) block = pt.t;
+  for (const pt of fullPrCurve(vcal, vy)) if (pt.y >= 0.9 && pt.t < block && pt.t > review) block = pt.t;
   const thresholds = { review: Math.min(review, 0.5), block: Math.max(block, review + 0.05) };
 
   const ty = test.map((r) => r.y);
