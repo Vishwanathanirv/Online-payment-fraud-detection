@@ -50,7 +50,7 @@ export function PaymentsChart({ d, o }: { d: Dataset; o: Outcome }) {
     g.clearRect(0, 0, w, H);
     const css = getComputedStyle(document.documentElement);
     const col = (n: string) => css.getPropertyValue(n).trim();
-    g.font = "11px IBM Plex Mono, monospace";
+    g.font = "11px JetBrains Mono Variable, monospace";
     g.fillStyle = col("--smoke");
     g.strokeStyle = col("--rule-soft");
     g.lineWidth = 1;
@@ -120,7 +120,7 @@ export function PaymentsChart({ d, o }: { d: Dataset; o: Outcome }) {
     <div ref={wrap} className="relative">
       <canvas ref={canvas} style={{ width: w, height: H }} onPointerMove={onMove} onPointerLeave={() => setHover(null)} role="img" aria-label="Every payment by time and amount, coloured by what the policy did" />
       {hover && (
-        <div className="pointer-events-none absolute z-10 w-56 border border-rule bg-ground-2 px-3 py-2 text-[13px] leading-snug" style={{ left: Math.min(hover.x + 12, w - 230), top: Math.max(0, hover.y - 70) }}>
+        <div className="pointer-events-none absolute z-10 w-56 border border-rule bg-desk-2 px-3 py-2 text-[13px] leading-snug" style={{ left: Math.min(hover.x + 12, w - 230), top: Math.max(0, hover.y - 70) }}>
           <div className="figure">{m.fmt(d.amount[hover.i] * m.k, 2)}</div>
           <div className="figure text-smoke">{timeLabel(d, d.t[hover.i])}</div>
           <div className={tone}>{text}</div>
