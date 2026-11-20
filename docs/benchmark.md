@@ -1,7 +1,7 @@
 # Benchmark on real card payments
 
-Everything on the case desk that uses real payments comes from this benchmark: the from-scratch
-models trained on **real, public card data**, so the numbers can be checked by anyone.
+The main results in the README come from FraudLens's simulator. This benchmark runs the same
+from-scratch models on **real, public card data**, so the numbers can be checked by anyone.
 
 ```bash
 npm run benchmark      # downloads ~150 MB to data/ once, about 3 minutes
@@ -17,11 +17,7 @@ npm run benchmark      # downloads ~150 MB to data/ once, about 3 minutes
 | Copy used | `https://storage.googleapis.com/download.tensorflow.org/data/creditcard.csv`, the copy the TensorFlow team hosts for its public tutorial. No login needed |
 | SHA-256 | `76274b691b16a6c49d3f159c883398e03ccd6d1ee12d9d8ee38f4b4b98551a89` (the script refuses any other file) |
 
-The data is not stored in this repository; the script downloads it. It writes three files the app uses:
-`docs/benchmark.json` (every number below), `apps/web/public/replay.json` (the test window: time, amount,
-label, each model's calibrated score, TreeSHAP and model inputs for the 402 riskiest payments) and
-`apps/web/public/case-model.json` (the 141 trees, their calibration and genuine-payment ranges, which the
-case files' counterfactual search runs on). Both derived files are offered under the ODbL, like the data.
+The data is not stored in this repository; the script downloads it.
 
 ## Protocol
 

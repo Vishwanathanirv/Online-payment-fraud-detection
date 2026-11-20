@@ -22,11 +22,7 @@ const LedgerScene = lazy(() => import("./scenes/ledger"));
 // Load every font subset up front (currency signs and accented letters live in the extended ones),
 // so opening a file never triggers a request and the privacy count stays at zero.
 const GLYPHS = "€£¥₹₩₺₱₪฿₫zł ąćęłńśźż čřšž őű ğış";
-// Done once the page is idle, so the first screen's own fonts and data come first.
-const preloadGlyphs = () => {
-  for (const font of ['16px "Fraunces Variable"', '16px "Hanken Grotesk Variable"', '16px "JetBrains Mono Variable"']) void document.fonts.load(font, GLYPHS);
-};
-addEventListener("load", () => ("requestIdleCallback" in window ? requestIdleCallback(preloadGlyphs, { timeout: 4000 }) : setTimeout(preloadGlyphs, 2000)), { once: true });
+for (const font of ['16px "Fraunces Variable"', '16px "Hanken Grotesk Variable"', '16px "JetBrains Mono Variable"']) void document.fonts.load(font, GLYPHS);
 
 /* ───────────── settings in the address, so a view can be shared (never the data itself) */
 
@@ -87,11 +83,7 @@ function App() {
   const [palette, setPalette] = useState(false);
 
   useEffect(() => {
-    // The desk and the ring board can paint without the 1.8 MB of payments, so those follow the page; other scenes need them at once.
-    const load = () => loadPublic().then(setPub, (e: Error) => setError(e.message));
-    if (!["desk", "rings"].includes(parseRoute().scene)) void load();
-    else if (document.readyState === "complete") setTimeout(load, 300);
-    else addEventListener("load", () => setTimeout(load, 300), { once: true });
+    loadPublic().then(setPub, (e: Error) => setError(e.message));
     loadRates().then(setRates, () => setRates(null));
     const onPop = () => setRoute(parseRoute());
     addEventListener("popstate", onPop);

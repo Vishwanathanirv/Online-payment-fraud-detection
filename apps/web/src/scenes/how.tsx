@@ -42,24 +42,14 @@ export default function HowScene() {
     addEventListener("keydown", onKey);
     return () => removeEventListener("keydown", onKey);
   }, []);
-  const head = (
-      <header className="pt-10 md:pt-14">
-        <p className="eyebrow">How it works · one real payment, {caseNumber(SAMPLE)}, from the public test window</p>
-        <h1 className="display mt-4 max-w-[26ch] text-[clamp(2rem,4.4vw,3.4rem)]">Follow one payment from its inputs to the decision.</h1>
-      </header>
-  );
-  if (!pub || !model || line === null)
-    return (
-      <div className="mx-auto max-w-[80rem] px-4 sm:px-10">
-        {head}
-        <HowSkeleton />
-      </div>
-    );
+  if (!pub || !model || line === null) return <HowSkeleton />;
   const s = STEPS[step];
   return (
     <div className="mx-auto max-w-[80rem] px-4 sm:px-10">
-      {head}
-
+      <header className="arrive pt-10 md:pt-14">
+        <p className="eyebrow">How it works · one real payment, {caseNumber(SAMPLE)}, from the public test window</p>
+        <h1 className="display mt-4 max-w-[26ch] text-[clamp(2rem,4.4vw,3.4rem)]">Follow one payment from its inputs to the decision.</h1>
+      </header>
 
       {/* The trail: five evidence tags on a string. */}
       <ol className="relative mt-10 grid grid-cols-5 gap-1 sm:gap-3" aria-label="Steps">
@@ -355,7 +345,9 @@ function Big({ label, value, note, tone = "" }: { label: string; value: string; 
 
 function HowSkeleton() {
   return (
-    <div aria-busy="true" aria-label="Loading the walkthrough">
+    <div className="mx-auto max-w-[80rem] px-4 pt-10 sm:px-10" aria-busy="true" aria-label="Loading the walkthrough">
+      <div className="skeleton h-3 w-80" />
+      <div className="skeleton mt-5 h-12 w-full max-w-2xl" />
       <div className="skeleton mt-10 h-14 w-full" />
       <div className="skeleton mt-10 h-80 w-full" />
     </div>

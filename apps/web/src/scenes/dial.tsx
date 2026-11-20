@@ -33,18 +33,11 @@ export default function DialScene() {
   const { d, model, costs, setCosts, line, setLine, go } = useDesk();
   const m = useMoney();
   const r = useMemo(() => (d ? ranking(d, model) : null), [d, model]);
-  return (
-    <div className="mx-auto max-w-[80rem] px-4 sm:px-10">
-      <header className="pt-10 md:pt-14">
-        <p className="eyebrow">Money dial · {d ? d.t.length.toLocaleString("en") : "56,962"} payments · turn it, drag it, or use the arrow keys</p>
-        <h1 className="display mt-4 max-w-[26ch] text-[clamp(2rem,4vw,3.1rem)]">Every notch buys fraud with customers.</h1>
-      </header>
-      {!d || !r || line === null ? <DialSkeleton /> : <Dial r={r} prob={d.probabilities[model]} line={line} setLine={setLine} costs={costs} setCosts={setCosts} go={go} m={m} />}
-    </div>
-  );
+  if (!d || !r || line === null) return <DialSkeleton />;
+  return <Dial r={r} prob={d.probabilities[model]} line={line} setLine={setLine} costs={costs} setCosts={setCosts} go={go} m={m} total={d.t.length} />;
 }
 
-function Dial({ r, prob, line, setLine, costs, setCosts, go, m }: { r: Ranking; prob: boolean; line: number; setLine: (v: number) => void; costs: ReturnType<typeof useDesk>["costs"]; setCosts: ReturnType<typeof useDesk>["setCosts"]; go: (p: string) => void; m: ReturnType<typeof useMoney> }) {
+function Dial({ r, prob, line, setLine, costs, setCosts, go, m, total }: { r: Ranking; prob: boolean; line: number; setLine: (v: number) => void; costs: ReturnType<typeof useDesk>["costs"]; setCosts: ReturnType<typeof useDesk>["setCosts"]; go: (p: string) => void; m: ReturnType<typeof useMoney>; total: number }) {
   const k = positionOf(r, line);
   const x = read(r, k, costs);
   const best = useMemo(() => cheapestCut(r, costs), [r, costs]);
@@ -116,7 +109,12 @@ function Dial({ r, prob, line, setLine, costs, setCosts, go, m }: { r: Ranking; 
   const valueText = `${x.declined.toLocaleString("en")} payments declined. ${m.fmt(x.caughtAmt * m.k)} fraud caught, ${x.blocked.toLocaleString("en")} good customers blocked, ${m.fmt(x.lost * m.k)} lost.`;
 
   return (
-    <>
+    <div className="mx-auto max-w-[80rem] px-4 sm:px-10">
+      <header className="arrive pt-10 md:pt-14">
+        <p className="eyebrow">Money dial · {total.toLocaleString("en")} payments · turn it, drag it, or use the arrow keys</p>
+        <h1 className="display mt-4 max-w-[26ch] text-[clamp(2rem,4vw,3.1rem)]">Every notch buys fraud with customers.</h1>
+      </header>
+
       <div className="mt-6 grid items-center gap-10 lg:grid-cols-[minmax(0,34rem)_1fr] lg:gap-16">
         <div className="relative mx-auto w-full max-w-[min(34rem,calc(100dvh-13rem))]">
           <svg
@@ -262,7 +260,7 @@ function Dial({ r, prob, line, setLine, costs, setCosts, go, m }: { r: Ranking; 
           </p>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -288,8 +286,10 @@ function Meter({ share, tone, note }: { share: number; tone: string; note?: stri
 
 function DialSkeleton() {
   return (
-    <div aria-busy="true" aria-label="Loading the dial">
-      <div className="mt-6 grid gap-10 lg:grid-cols-[34rem_1fr]">
+    <div className="mx-auto max-w-[80rem] px-4 pt-10 sm:px-10" aria-busy="true" aria-label="Loading the dial">
+      <div className="skeleton h-3 w-64" />
+      <div className="skeleton mt-5 h-12 w-full max-w-xl" />
+      <div className="mt-8 grid gap-10 lg:grid-cols-[34rem_1fr]">
         <div className="skeleton mx-auto aspect-square w-full max-w-[34rem] !rounded-full" />
         <div className="space-y-8">
           <div className="skeleton h-20 w-72" />

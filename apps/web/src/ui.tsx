@@ -74,20 +74,6 @@ export function Choice<T extends string>({ value, options, onChange, label }: { 
   );
 }
 
-/** Renders its children only once they come near the screen, so heavy modules below the fold cost nothing up front. */
-export function Deferred({ children, minHeight = 480 }: { children: ReactNode; minHeight?: number }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [shown, setShown] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || shown) return;
-    const io = new IntersectionObserver(([e]) => e.isIntersecting && setShown(true), { rootMargin: "800px 0px" });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [shown]);
-  return <div ref={ref}>{shown ? children : <div className="skeleton" style={{ minHeight }} aria-hidden />}</div>;
-}
-
 export function Section({ id, kicker, title, children }: { id: string; kicker: string; title: ReactNode; children: ReactNode }) {
   return (
     <section id={id} className="scroll-mt-28 border-t border-rule py-20 md:py-28">

@@ -3,11 +3,11 @@ import type { Category, Channel, Transaction } from "./types";
 
 /**
  * A believable customer for the "try a payment" page: six weeks of everyday spending in
- * Mumbai on one phone, the last of it about 90 minutes ago. Without a history the model has
+ * Chennai on one phone, the last of it about 90 minutes ago. Without a history the model has
  * nothing to call "normal", so a skimmed card used in Lagos would look like any other payment;
  * with one, it looks exactly as wrong as it should.
  */
-export const DEMO_CARD = { cardId: "card_demo", deviceId: "device_demo", homeLat: 19.08, homeLon: 72.88, ageDays: 400 } as const;
+export const DEMO_CARD = { cardId: "card_demo", deviceId: "device_demo", homeLat: 13.08, homeLon: 80.27, ageDays: 400 } as const;
 
 const HABITS: { category: Category; channel: Channel; min: number; max: number; weight: number }[] = [
   { category: "grocery", channel: "upi", min: 180, max: 2400, weight: 5 },
@@ -45,7 +45,7 @@ function txn(ts: number, category: Category, channel: Channel, amount: number, i
     id: `demo_hist_${i}`,
     ts,
     cardId: DEMO_CARD.cardId,
-    merchantId: `m_mumbai_${category}_${i % 4}`,
+    merchantId: `m_chennai_${category}_${i % 4}`,
     category,
     amount,
     channel,

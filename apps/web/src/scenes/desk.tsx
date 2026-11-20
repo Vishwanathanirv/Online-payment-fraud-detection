@@ -25,8 +25,8 @@ export default function DeskScene() {
   return (
     <div className="mx-auto max-w-[80rem] px-4 sm:px-10">
       <section className="pb-14 pt-12 md:pb-20 md:pt-20" aria-labelledby="idea">
-        <p className="eyebrow">The fraud case desk · real card payments, in your browser</p>
-        <h1 id="idea" className="display mt-6 max-w-[17ch] text-[clamp(2.5rem,7.2vw,6rem)]">
+        <p className="eyebrow arrive">The fraud case desk · real card payments, in your browser</p>
+        <h1 id="idea" className="display arrive arrive-2 mt-6 max-w-[17ch] text-[clamp(2.5rem,7.2vw,6rem)]">
           A fraud score is evidence. <b className="text-lamp">Where you draw the line is money.</b>
         </h1>
         <div className="arrive arrive-3 mt-10 grid gap-10 md:grid-cols-[1.25fr_1fr] md:gap-16">
