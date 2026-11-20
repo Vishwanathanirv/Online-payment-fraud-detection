@@ -10,6 +10,27 @@ Every fraud team runs into the same limit. A model can rank payments by risk, bu
 
 Change the team size, how many alerts one person gets through in an hour, the cost of a review, or the model doing the ranking. Every figure on the page is recomputed from the real payments as you go.
 
+## Use it on your own queue
+
+FraudLens answers the same question for your team. Export your scored transactions with their confirmed outcomes, drop the CSV on the page, and every figure, chart and review in the queue is recomputed for your data.
+
+| Column | What it holds | Also recognised as |
+| --- | --- | --- |
+| `time` | When the transaction happened: a date, or seconds | timestamp, date, created_at |
+| `amount` | Its value, in the currency you pick | value, amt |
+| `score` | Your model's score; higher means riskier. Probabilities show as a %, anything else as a rank | risk, risk_score, probability, prediction |
+| `fraud` | The confirmed outcome: 1/0, true/false, yes/no | is_fraud, label, class, chargeback |
+
+The file is read in the browser and never uploaded. A template is one click away on the page, and a file that can't be used is refused with the exact reason (a missing column, an unreadable row, no fraud to catch).
+
+![Drop a CSV of your own scored, labelled transactions](docs/screenshots/your-data.png)
+
+## In your currency
+
+The public data is recorded in euros. **Amounts in** at the top of the page converts every figure, axis and control to any of 30 currencies at the European Central Bank's euro reference rates, fetched at build time; the page names the date of the rate it used. Rupees are grouped the Indian way (₹4,95,255). Your own data keeps the currency you give it and converts the same way.
+
+![The same answer in rupees](docs/screenshots/in-rupees.png)
+
 ## What it shows
 
 **The answer, first.** The headline is the result: fraud stopped out of fraud lost, for the team you describe. Beneath it, fraud let through and the net value after review costs.
@@ -62,7 +83,7 @@ npm run benchmark   # downloads the dataset once (~150 MB, checked by SHA-256), 
 npm run dev -w apps/web
 ```
 
-`npm run benchmark` rewrites `docs/benchmark.json` (the summary) and `apps/web/public/replay.json` (every test-window payment with its real time, amount and label, each model's calibrated score, and TreeSHAP factors for every payment the trees score at 0.5% or more, and for every fraud: 402 in all). Run it twice and you get the same numbers: the split, the search and the seeds are fixed.
+`npm run build:demo -w apps/web` fetches the ECB rates (keeping the committed `rates.json` if the ECB can't be reached) and builds the page. `npm run benchmark` rewrites `docs/benchmark.json` (the summary) and `apps/web/public/replay.json` (every test-window payment with its real time, amount and label, each model's calibrated score, and TreeSHAP factors for every payment the trees score at 0.5% or more, and for every fraud: 402 in all). Run it twice and you get the same numbers: the split, the search and the seeds are fixed.
 
 ## Inside
 

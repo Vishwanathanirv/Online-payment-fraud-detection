@@ -17,10 +17,10 @@ test("more analysts stop more fraud, and none stop none", async ({ page }) => {
   await expect(page.locator("h1")).toContainText("€");
   await page.waitForTimeout(600);
   const base = await stopped(page);
-  await page.getByRole("button", { name: "More analysts" }).click();
+  await page.getByRole("button", { name: "More: analysts" }).click();
   await page.waitForTimeout(700);
   expect(await stopped(page)).toBeGreaterThanOrEqual(base);
-  const fewer = page.getByRole("button", { name: "Fewer analysts" });
+  const fewer = page.getByRole("button", { name: "Less: analysts" });
   while (await fewer.isEnabled()) await fewer.click();
   await page.waitForTimeout(700);
   expect(await stopped(page)).toBe(0);
@@ -53,4 +53,31 @@ test("on a phone nothing scrolls sideways", async ({ browser }) => {
   await expect(page.locator("h1")).toContainText("lost to fraud");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.close();
+});
+
+test("every amount converts to the chosen currency, with the rate's source and date", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("h1")).toContainText("€7,729");
+  await page.getByRole("combobox", { name: "Show amounts in" }).selectOption("INR");
+  await expect(page.locator("h1")).toContainText("₹");
+  await expect(page.getByText(/shown in INR at the ECB reference rate of \d{4}-\d{2}-\d{2}/)).toBeVisible();
+  await expect(page.locator("h1")).not.toContainText("€");
+});
+
+test("your own CSV is read in the browser and answers the same question", async ({ page }) => {
+  await page.goto("/");
+  const csv = ["time,amount,risk_score,is_fraud", "2026-11-02T09:00:00Z,40,0.01,0", "2026-11-02T09:10:00Z,1800,0.92,1", "2026-11-02T09:20:00Z,12,0.02,0", "2026-11-02T10:05:00Z,300,0.75,1", "2026-11-02T10:30:00Z,25,0.05,0"].join("\n");
+  await page.getByRole("combobox", { name: "Currency of your amounts" }).selectOption("GBP");
+  await page.getByLabel("Your transactions file").setInputFiles({ name: "my-queue.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
+  await expect(page.getByText(/5 of your transactions/)).toBeVisible();
+  await expect(page.locator("h1")).toContainText("£2,100");
+  await expect(page.getByRole("combobox", { name: "Model that ranks the payments" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Back to the public data" }).click();
+  await expect(page.getByText(/56,962 real card payments/)).toBeVisible();
+});
+
+test("a file without the needed columns is refused with a reason", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Your transactions file").setInputFiles({ name: "wrong.csv", mimeType: "text/csv", buffer: Buffer.from("id,value\n1,20\n") });
+  await expect(page.getByRole("alert")).toContainText("Missing columns: time, score, fraud");
 });
