@@ -77,6 +77,8 @@ test("case desk: stamp cases with the keyboard and the next file opens", async (
 
 test("case desk works on a phone: drawer, file, stamp", async ({ browser }) => {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  // A page of its own, so the returning-visitor setup above doesn't reach it.
+  await page.addInitScript(() => localStorage.setItem("fraudlens-pitch-seen", "1"));
   await page.goto("/");
   await page.getByRole("button", { name: "Start the shift" }).click();
   const queue = page.getByRole("region", { name: "Queue" });
