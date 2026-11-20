@@ -3,7 +3,7 @@
 /*
  * FraudLens reads like a research note, not a dashboard: one long page, hairline rules instead of
  * boxes, a serif for statements, tabular mono for every figure. Colour is a signal, never decoration:
- * verdigris is money stopped, vermilion is money lost, bone is everything else.
+ * verdigris is fraud stopped, vermilion is fraud lost, amber is genuine customers declined.
  */
 :root {
   --ground: #101112;
@@ -16,6 +16,8 @@
   --stopped: #5fb7a5;
   --lost: #e0583f;
   --lost-soft: rgba(224, 88, 63, 0.14);
+  /* Genuine customers turned away: the policy's other cost. */
+  --declined: #d9a14a;
   --stopped-soft: rgba(95, 183, 165, 0.14);
   --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
   --sans: "Hanken Grotesk Variable", "Hanken Grotesk", system-ui, sans-serif;
@@ -32,6 +34,8 @@
   --color-smoke: var(--smoke);
   --color-stopped: var(--stopped);
   --color-lost: var(--lost);
+  --color-declined: var(--declined);
+  --color-rule-soft: var(--rule-soft);
   --font-serif: var(--serif);
   --font-sans: var(--sans);
   --font-mono: var(--mono);
