@@ -399,3 +399,32 @@ body {
     opacity: 0.4;
   }
 }
+
+/* The counterfactual's own sliders: just a green dot on the paper. */
+.cf-range {
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+.cf-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--stamp-green);
+  border: 2px solid var(--paper);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+.cf-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--stamp-green);
+  border: 2px solid var(--paper);
+}
+.cf-range::-webkit-slider-runnable-track {
+  background: transparent;
+}
+.cf-range:focus-visible {
+  outline: 2px solid var(--ink);
+}

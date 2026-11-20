@@ -87,6 +87,39 @@ test("the dial follows a drag", async ({ page }) => {
   expect(Number(await dial.getAttribute("aria-valuenow"))).toBeGreaterThan(20000);
 });
 
+/* ───────────── the case file */
+
+test("a case file says why, and what would have cleared it, on the same trees", async ({ page }) => {
+  await page.goto("/case/fraud");
+  await expect(page).toHaveURL(/\/case\/\d+#/);
+  await expect(page.locator("h1")).toContainText(/Caught|Missed/);
+  await expect(page.getByText(/Component V\d+/).first()).toBeVisible();
+  const whatIf = page.getByText(/would have taken it from|No believable change clears it|already goes through/);
+  await expect(whatIf).toBeVisible();
+  if (await page.getByText(/would have taken it from/).count()) {
+    await expect(page.getByText("Cleared", { exact: true })).toBeVisible();
+    // Drag the first change all the way back past where it started: declined again.
+    const hand = page.getByRole("slider", { name: /Try a value for/ }).first();
+    await hand.focus();
+    for (let i = 0; i < 2; i++) await page.keyboard.press("Home");
+    await page.keyboard.press("End");
+    await page.keyboard.press("Home");
+    await expect(page.getByText(/your version: [\d.]+% [<≥]/)).toBeVisible();
+  }
+  const first = page.url();
+  await page.locator("h1").click();
+  await page.keyboard.press("]");
+  await expect(page).not.toHaveURL(first);
+  await page.keyboard.press("a");
+  await expect(page.locator("h1")).toContainText(/False alarm|Cleared/);
+});
+
+test("a counterfactual never changes the amount or time when told to keep them", async ({ page }) => {
+  await page.goto("/case/fraud");
+  await page.getByLabel("Keep the amount and time as they were").check();
+  await expect(page.getByRole("slider", { name: /Try a value for (Amount|Time of day)/ })).toHaveCount(0);
+});
+
 /* ───────────── the ledger */
 
 test("loads the real test window with the cheapest policy", async ({ page }) => {
@@ -182,7 +215,7 @@ test("settings travel in the link", async ({ page }) => {
 
 test("on a phone nothing scrolls sideways, in any scene", async ({ browser }) => {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
-  for (const path of ["/", "/dial", "/ledger"]) {
+  for (const path of ["/", "/dial", "/case/fraud", "/ledger"]) {
     await page.goto(path);
     await expect(page.locator("h1")).toBeVisible();
     await page.waitForTimeout(300);
