@@ -1,111 +1,75 @@
 @import "tailwindcss";
 
 /*
- * The case desk: a dim room, one lamp, evidence on the desk. Dark is the only theme.
- * Paper (case files, index cards, tags) is the only light surface, and it only appears where
- * there is evidence to read. Colour is a signal, never decoration:
- *   verdigris  fraud caught      vermilion  money lost      amber  good customers blocked
- *   red string links between payments on the ring board
+ * FraudLens reads like a research note, not a dashboard: one long page, hairline rules instead of
+ * boxes, a serif for statements, tabular mono for every figure. Colour is a signal, never decoration:
+ * verdigris is fraud stopped, vermilion is fraud lost, amber is genuine customers declined.
  */
 :root {
-  --room: #0c0b0a;
-  --desk: #151311;
-  --desk-2: #1c1a17;
-  --rule: #2e2a25;
-  --rule-soft: #211e1a;
-  --bone: #f0e8d8;
-  --ash: #b3aa9a;
-  --smoke: #8f8678;
-  --lamp: #ffc477;
-  --stopped: #6cc8ac;
-  --lost: #f26a4b;
-  --declined: #e8ad52;
-  --string: #d2402f;
-  --paper: #ddcfae;
-  --paper-2: #cdbd96;
-  --paper-edge: #a8966c;
-  --ink: #221c13;
-  --ink-soft: #5a4e3a;
-  --stamp-red: #b3261e;
-  --stamp-green: #1f6e57;
-  --serif: "Fraunces Variable", "Iowan Old Style", Georgia, serif;
+  --ground: #101112;
+  --ground-2: #16171a;
+  --rule: #2a2b2f;
+  --rule-soft: #1e1f22;
+  --bone: #ebe6dc;
+  --ash: #a29d94;
+  --smoke: #6f6b65;
+  --stopped: #5fb7a5;
+  --lost: #e0583f;
+  --lost-soft: rgba(224, 88, 63, 0.14);
+  /* Genuine customers turned away: the policy's other cost. */
+  --declined: #d9a14a;
+  --stopped-soft: rgba(95, 183, 165, 0.14);
+  --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
   --sans: "Hanken Grotesk Variable", "Hanken Grotesk", system-ui, sans-serif;
-  --mono: "JetBrains Mono Variable", ui-monospace, monospace;
-  --spring: linear(0, 0.009, 0.035 2.1%, 0.141 4.4%, 0.723 12.9%, 0.938 16.7%, 1.017 19.4%, 1.067, 1.099 24.3%, 1.108 26%, 1.1, 1.077 30.6%, 1.006 38.2%, 0.983 42.4%, 0.976 46.6%, 0.979 50.5%, 0.998 62.4%, 1.003 70.1%, 1);
-  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
   color-scheme: dark;
 }
 
 @theme inline {
-  --color-room: var(--room);
-  --color-desk: var(--desk);
-  --color-desk-2: var(--desk-2);
+  --color-ground: var(--ground);
+  --color-ground-2: var(--ground-2);
   --color-rule: var(--rule);
-  --color-rule-soft: var(--rule-soft);
   --color-bone: var(--bone);
   --color-ash: var(--ash);
   --color-smoke: var(--smoke);
-  --color-lamp: var(--lamp);
   --color-stopped: var(--stopped);
   --color-lost: var(--lost);
   --color-declined: var(--declined);
-  --color-string: var(--string);
-  --color-paper: var(--paper);
-  --color-ink: var(--ink);
-  --color-ink-soft: var(--ink-soft);
+  --color-rule-soft: var(--rule-soft);
   --font-serif: var(--serif);
   --font-sans: var(--sans);
   --font-mono: var(--mono);
 }
 
 html {
-  background: var(--room);
+  background: var(--ground);
   color: var(--bone);
+  scroll-behavior: smooth;
 }
 body {
-  min-height: 100dvh;
   font-family: var(--sans);
   font-size: 17px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  background:
-    radial-gradient(70rem 42rem at 50% -8rem, rgba(255, 196, 119, 0.13), transparent 62%),
-    radial-gradient(40rem 30rem at 85% 110%, rgba(210, 64, 47, 0.05), transparent 70%),
-    var(--room);
-  background-attachment: fixed;
 }
 ::selection {
-  background: rgba(255, 196, 119, 0.28);
+  background: var(--stopped-soft);
 }
 :focus-visible {
-  outline: 2px solid var(--lamp);
+  outline: 1.5px solid var(--bone);
   outline-offset: 3px;
-  border-radius: 2px;
 }
 
-/* Display type: Fraunces at its largest optical size, light and wide, tightening as it grows. */
-.display {
-  font-family: var(--serif);
-  font-optical-sizing: auto;
-  font-weight: 360;
-  letter-spacing: -0.022em;
-  line-height: 1.02;
-}
-.display b,
-.display strong {
-  font-weight: 640;
-}
 .figure {
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 .eyebrow {
   font-family: var(--mono);
   font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--smoke);
 }
@@ -116,65 +80,6 @@ body {
 .prose-note strong {
   color: var(--bone);
   font-weight: 600;
-}
-.kbd {
-  display: inline-grid;
-  place-items: center;
-  min-width: 1.45em;
-  height: 1.45em;
-  padding: 0 0.3em;
-  border: 1px solid var(--rule);
-  border-bottom-width: 2px;
-  border-radius: 4px;
-  font-family: var(--mono);
-  font-size: 0.72em;
-  color: var(--ash);
-  line-height: 1;
-}
-
-/* Paper: the evidence. Warm, a little uneven, lit from above. */
-.paper {
-  color: var(--ink);
-  background:
-    radial-gradient(120% 80% at 30% 0%, rgba(255, 248, 228, 0.55), transparent 60%),
-    repeating-linear-gradient(0deg, rgba(90, 70, 40, 0.035) 0 1px, transparent 1px 3px),
-    var(--paper);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.25) inset,
-    0 30px 60px -20px rgba(0, 0, 0, 0.75),
-    0 8px 18px -8px rgba(0, 0, 0, 0.6);
-}
-.paper .eyebrow {
-  color: var(--ink-soft);
-}
-.typed {
-  font-family: var(--mono);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
-}
-
-/* An ink stamp: pressed at an angle, a little worn. */
-.stamp {
-  display: inline-block;
-  padding: 0.18em 0.55em 0.12em;
-  border: 3px solid currentColor;
-  border-radius: 6px;
-  font-family: var(--mono);
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  transform: rotate(-7deg);
-  mask-image: radial-gradient(circle at 30% 40%, #000 55%, rgba(0, 0, 0, 0.72) 70%, #000 85%);
-  opacity: 0.9;
-}
-.stamp-in {
-  animation: stamp 0.42s var(--spring) both;
-}
-@keyframes stamp {
-  from {
-    opacity: 0;
-    transform: rotate(-7deg) scale(1.9);
-  }
 }
 
 /* A number inside a sentence that can be changed: underlined like a footnote, not boxed like a field. */
@@ -187,19 +92,19 @@ body {
 }
 .inline-num:hover,
 .inline-num:focus-within {
-  border-color: var(--lamp);
+  border-color: var(--bone);
 }
 .inline-num button {
   font-family: var(--mono);
-  font-size: 0.5em;
+  font-size: 0.42em;
   line-height: 1;
-  color: var(--ash);
-  padding: 0.2em 0.3em;
+  color: var(--smoke);
+  padding: 0.15em 0.25em;
   border-radius: 3px;
-  transform: translateY(-0.3em);
+  transform: translateY(-0.35em);
 }
 .inline-num button:hover:not(:disabled) {
-  color: var(--lamp);
+  color: var(--bone);
 }
 .inline-num button:disabled {
   opacity: 0.3;
@@ -216,11 +121,11 @@ body {
 }
 .inline-select:hover,
 .inline-select:focus-visible {
-  border-color: var(--lamp);
+  border-color: var(--bone);
   outline: none;
 }
 .inline-select option {
-  background: var(--desk-2);
+  background: var(--ground-2);
   color: var(--bone);
   font-family: var(--sans);
   font-size: 16px;
@@ -231,49 +136,12 @@ body {
   text-decoration: underline;
   text-decoration-color: var(--smoke);
   text-underline-offset: 4px;
-  transition: text-decoration-color 0.2s;
 }
 .link:hover {
-  text-decoration-color: var(--lamp);
+  text-decoration-color: var(--bone);
 }
 
-/* The one kind of button on the desk: a brass-edged plate. */
-.plate {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6em;
-  padding: 0.55em 1em;
-  border: 1px solid var(--rule);
-  border-radius: 999px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent);
-  color: var(--bone);
-  font-size: 15px;
-  line-height: 1.2;
-  transition:
-    border-color 0.2s,
-    transform 0.25s var(--spring),
-    background 0.2s;
-}
-.plate:hover {
-  border-color: var(--lamp);
-}
-.plate:active {
-  transform: scale(0.96);
-}
-.plate[aria-pressed="true"],
-.plate.lit {
-  border-color: var(--lamp);
-  background: rgba(255, 196, 119, 0.1);
-}
-.plate-ink {
-  border-color: rgba(34, 28, 19, 0.35);
-  color: var(--ink);
-  background: rgba(255, 255, 255, 0.18);
-}
-.plate-ink:hover {
-  border-color: var(--ink);
-}
-
+/* Rows of the alert queue expand in place. */
 .queue-row {
   transition: background 0.15s;
 }
@@ -281,29 +149,9 @@ body {
   background: var(--rule-soft);
 }
 
-/* Loading: the shape of what is coming, breathing. */
-.skeleton {
-  background: linear-gradient(90deg, var(--desk) 0%, var(--desk-2) 40%, var(--desk) 80%) 0 0 / 300% 100%;
-  animation: breathe 1.6s ease-in-out infinite;
-  border-radius: 6px;
-}
-@keyframes breathe {
-  to {
-    background-position: -150% 0;
-  }
-}
-
+/* Sections arrive as you reach them. */
 .arrive {
-  animation: arrive 0.7s var(--ease-out) both;
-}
-.arrive-2 {
-  animation-delay: 0.08s;
-}
-.arrive-3 {
-  animation-delay: 0.16s;
-}
-.arrive-4 {
-  animation-delay: 0.24s;
+  animation: arrive 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 @keyframes arrive {
   from {
@@ -311,165 +159,11 @@ body {
     transform: translateY(14px);
   }
 }
-
-/* Objects on the desk lift towards the lamp. */
-.object {
-  transition:
-    transform 0.5s var(--spring),
-    filter 0.3s;
-}
-.object:hover,
-.object:focus-visible {
-  transform: translateY(-6px) rotate(0deg) !important;
-  filter: brightness(1.08);
-}
-
-/* Moving between scenes: the new one slides in under the lamp. */
-::view-transition-old(root) {
-  animation: 0.22s var(--ease-out) both scene-out;
-}
-::view-transition-new(root) {
-  animation: 0.42s var(--ease-out) both scene-in;
-}
-@keyframes scene-out {
-  to {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-}
-@keyframes scene-in {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
-}
-
-/* The ring board's red string draws itself. */
-.string {
-  stroke-dasharray: var(--len, 400);
-  stroke-dashoffset: var(--len, 400);
-  transition: stroke-dashoffset 0.9s var(--ease-out);
-}
-.string.drawn {
-  stroke-dashoffset: 0;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after,
-  ::view-transition-old(root),
-  ::view-transition-new(root) {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  html {
+    scroll-behavior: auto;
   }
-}
-
-.palette-drop {
-  animation: drop 0.32s var(--spring) both;
-  transform-origin: top center;
-}
-@keyframes drop {
-  from {
-    opacity: 0;
-    transform: translateY(-14px) scale(0.98);
-  }
-}
-
-/* The dial on the desk idles, as if someone just let go of it. */
-.dial-needle {
-  transform-origin: 100px 100px;
-  animation: idle 6s ease-in-out infinite alternate;
-}
-@keyframes idle {
-  from {
-    transform: rotate(-60deg);
-  }
-  to {
-    transform: rotate(48deg);
-  }
-}
-
-.tick-in {
-  animation: tick 0.28s var(--spring) both;
-}
-@keyframes tick {
-  from {
-    opacity: 0.4;
-  }
-}
-
-/* The counterfactual's own sliders: just a green dot on the paper. */
-.cf-range {
-  appearance: none;
-  background: transparent;
-  cursor: pointer;
-}
-.cf-range::-webkit-slider-thumb {
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--stamp-green);
-  border: 2px solid var(--paper);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
-}
-.cf-range::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--stamp-green);
-  border: 2px solid var(--paper);
-}
-.cf-range::-webkit-slider-runnable-track {
-  background: transparent;
-}
-.cf-range:focus-visible {
-  outline: 2px solid var(--ink);
-}
-
-/* The ring board: dark cork under the lamp. */
-.cork {
-  background:
-    radial-gradient(60% 50% at 50% 0%, rgba(255, 196, 119, 0.14), transparent 70%),
-    radial-gradient(circle at 20% 30%, rgba(0, 0, 0, 0.22) 0 1px, transparent 1.5px) 0 0 / 7px 7px,
-    radial-gradient(circle at 70% 60%, rgba(255, 220, 170, 0.06) 0 1px, transparent 1.5px) 0 0 / 9px 9px,
-    #3a2a1c;
-  box-shadow:
-    inset 0 0 0 6px #4c3826,
-    inset 0 0 60px rgba(0, 0, 0, 0.6),
-    0 40px 80px -30px rgba(0, 0, 0, 0.9);
-}
-.string-in {
-  stroke-dasharray: 2000;
-  stroke-dashoffset: 2000;
-  animation: draw 1.2s var(--ease-out) forwards;
-}
-@keyframes draw {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-.tag-in {
-  animation: tag 0.5s var(--spring) both;
-}
-@keyframes tag {
-  from {
-    opacity: 0;
-    scale: 0.6;
-  }
-}
-
-.bar-rise {
-  animation: arrive 0.5s var(--ease-out) both;
-}
-.bar-grow {
-  transform-origin: left;
-  animation: grow 0.7s var(--spring) both;
-}
-@keyframes grow {
-  from {
-    transform: scaleX(0);
+  .arrive {
+    animation: none;
   }
 }

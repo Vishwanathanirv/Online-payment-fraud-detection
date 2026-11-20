@@ -76,9 +76,9 @@ export function Choice<T extends string>({ value, options, onChange, label }: { 
 
 export function Section({ id, kicker, title, children }: { id: string; kicker: string; title: ReactNode; children: ReactNode }) {
   return (
-    <section id={id} className="scroll-mt-28 border-t border-rule py-20 md:py-28">
+    <section id={id} className="arrive scroll-mt-20 border-t border-rule py-20 md:py-28">
       <p className="eyebrow">{kicker}</p>
-      <h2 className="display mt-4 max-w-[24ch] text-[clamp(1.9rem,3.8vw,2.8rem)]">{title}</h2>
+      <h2 className="mt-4 max-w-[24ch] font-serif text-[clamp(1.9rem,3.8vw,2.8rem)] leading-[1.06] tracking-[-0.01em]">{title}</h2>
       <div className="mt-10">{children}</div>
     </section>
   );
