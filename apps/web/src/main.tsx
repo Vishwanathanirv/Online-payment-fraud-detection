@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useMemo, useState } from "react";
+import { StrictMode, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "@fontsource/instrument-serif/400.css";
 import "@fontsource-variable/hanken-grotesk";
@@ -7,7 +7,12 @@ import "@fontsource/ibm-plex-mono/500.css";
 import "./index.css";
 import bench from "../../../docs/benchmark.json";
 import { LineChart, PaymentsChart, timeLabel } from "./charts";
-import { loadPublic, totals, type Dataset } from "./engine/dataset";
+import { decodeRules, encodeRules } from "./engine/backtest";
+import { loadPublic, subset, totals, type Dataset } from "./engine/dataset";
+import { maturity, matureCut } from "./engine/maturity";
+import { DEFAULT_LIMITS, type Limits } from "./engine/monitor";
+import { compiles, forceOf, scoreField, type Rule } from "./engine/rules";
+import { MaturityModule, MonitorModule, RulesModule } from "./operations";
 import { currencyList, loadRates, moneyFormat, niceStep, rateBetween, type Rates } from "./engine/money";
 import { cheapest, DEFAULT_COSTS, DEFAULT_STAFFING, evaluate, type Costs, type Outcome, type Staffing, type Thresholds } from "./engine/policy";
 import { dimensions, segment, type Dimension } from "./engine/segments";
@@ -21,19 +26,38 @@ for (const font of ['16px "Instrument Serif"', '16px "Hanken Grotesk Variable"',
 
 /* ───────────── settings in the address, so a view can be shared (never the data itself) */
 
-type Settings = { costs: Costs; staffing: Staffing; view: string };
+type Settings = { costs: Costs; staffing: Staffing; view: string; rules: Rule[]; limits: Limits; mature: boolean };
+const LIMIT_KEYS: [keyof Limits, string][] = [
+  ["visaRatio", "vr"],
+  ["visaCount", "vc"],
+  ["ecmRatio", "er"],
+  ["ecmCount", "ec"],
+  ["hecmRatio", "hr"],
+  ["hecmCount", "hc"],
+];
 function readHash(): Partial<Settings> {
   const p = new URLSearchParams(location.hash.slice(1));
-  const n = (k: string) => (p.has(k) && Number.isFinite(Number(p.get(k))) ? Number(p.get(k)) : undefined);
+  // Empty or negative values in a link fall back to the defaults.
+  const n = (k: string) => {
+    const v = p.get(k);
+    return v !== null && v.trim() !== "" && Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : undefined;
+  };
   const out: Partial<Settings> = {};
   if (n("a") !== undefined || n("min") !== undefined || n("to") !== undefined || p.get("o"))
     out.staffing = { analysts: n("a") ?? DEFAULT_STAFFING.analysts, minutesPerReview: n("min") ?? DEFAULT_STAFFING.minutesPerReview, timeoutMinutes: n("to") ?? DEFAULT_STAFFING.timeoutMinutes, order: p.get("o") === "oldest" ? "oldest" : "risk" };
   if (n("fm") !== undefined || n("rc") !== undefined || n("dc") !== undefined) out.costs = { fraudMultiple: n("fm") ?? DEFAULT_COSTS.fraudMultiple, reviewCost: n("rc") ?? DEFAULT_COSTS.reviewCost, declineShare: (n("dc") ?? DEFAULT_COSTS.declineShare * 100) / 100 };
   if (p.get("cur")) out.view = p.get("cur")!;
+  const rules = decodeRules(p.get("r"));
+  if (rules) out.rules = rules;
+  if (LIMIT_KEYS.some(([, k]) => n(k) !== undefined)) out.limits = Object.fromEntries(LIMIT_KEYS.map(([f, k]) => [f, n(k) === undefined ? DEFAULT_LIMITS[f] : f.endsWith("Ratio") ? n(k)! / 100 : n(k)!])) as Limits;
+  if (p.get("mat") === "1") out.mature = true;
   return out;
 }
 function writeHash(s: Settings) {
   const p = new URLSearchParams({ a: String(s.staffing.analysts), min: String(s.staffing.minutesPerReview), to: String(s.staffing.timeoutMinutes), o: s.staffing.order, fm: String(s.costs.fraudMultiple), rc: String(+s.costs.reviewCost.toFixed(4)), dc: String(+(s.costs.declineShare * 100).toFixed(2)), cur: s.view });
+  if (s.rules.some((r) => r.x.trim())) p.set("r", encodeRules(s.rules));
+  for (const [f, k] of LIMIT_KEYS) if (s.limits[f] !== DEFAULT_LIMITS[f]) p.set(k, String(f.endsWith("Ratio") ? +(s.limits[f] * 100).toFixed(2) : s.limits[f]));
+  if (s.mature) p.set("mat", "1");
   history.replaceState(null, "", `#${p}`);
 }
 
@@ -68,7 +92,7 @@ function ScoreInline({ value, prob, range, onChange, label }: { value: number; p
   );
 }
 
-function ThresholdsModule({ d, model, th, setTh, costs, setCosts, staffing, o }: { d: Dataset; model: string; th: Thresholds; setTh: (t: Thresholds) => void; costs: Costs; setCosts: (c: Costs) => void; staffing: Staffing; o: Outcome }) {
+function ThresholdsModule({ d, model, th, setTh, costs, setCosts, staffing, o, force }: { d: Dataset; model: string; th: Thresholds; setTh: (t: Thresholds) => void; costs: Costs; setCosts: (c: Costs) => void; staffing: Staffing; o: Outcome; force?: Uint8Array }) {
   const m = useMoney();
   const prob = d.probabilities[model];
   const sc = d.score[model];
@@ -85,10 +109,10 @@ function ThresholdsModule({ d, model, th, setTh, costs, setCosts, staffing, o }:
     return {
       points,
       xs: points.map((p) => fmtScore(p, prob)),
-      ideal: points.map((r) => evaluate(d, model, { block: th.block, review: r }, costs, ample).cost.total),
-      team: points.map((r) => evaluate(d, model, { block: th.block, review: r }, costs, staffing).cost.total),
+      ideal: points.map((r) => evaluate(d, model, { block: th.block, review: r }, costs, ample, force).cost.total),
+      team: points.map((r) => evaluate(d, model, { block: th.block, review: r }, costs, staffing, force).cost.total),
     };
-  }, [d, model, th.block, th.review, costs, staffing, sc, range, prob]);
+  }, [d, model, th.block, th.review, costs, staffing, sc, range, prob, force]);
   const mark = Math.max(0, curve.points.indexOf(th.review));
   const costStep = niceStep(m.k);
   const band = (b: "block" | "review" | "approve") => {
@@ -161,9 +185,9 @@ function ThresholdsModule({ d, model, th, setTh, costs, setCosts, staffing, o }:
 
 /* ───────────── staffing */
 
-function StaffingModule({ d, model, th, costs, staffing, setStaffing, o }: { d: Dataset; model: string; th: Thresholds; costs: Costs; staffing: Staffing; setStaffing: (s: Staffing) => void; o: Outcome }) {
+function StaffingModule({ d, model, th, costs, staffing, setStaffing, o, force }: { d: Dataset; model: string; th: Thresholds; costs: Costs; staffing: Staffing; setStaffing: (s: Staffing) => void; o: Outcome; force?: Uint8Array }) {
   const m = useMoney();
-  const curve = useMemo(() => Array.from({ length: 13 }, (_, n) => evaluate(d, model, th, costs, { ...staffing, analysts: n }).cost.total), [d, model, th, costs, staffing]);
+  const curve = useMemo(() => Array.from({ length: 13 }, (_, n) => evaluate(d, model, th, costs, { ...staffing, analysts: n }, force).cost.total), [d, model, th, costs, staffing, force]);
   const best = curve.reduce((b, v, i) => (v < curve[b] - 0.005 ? i : b), 0);
   const waits = [...o.queue.waits].sort((a, b) => a - b);
   const q = (p: number) => (waits.length ? waits[Math.min(waits.length - 1, Math.floor(p * waits.length))] : 0);

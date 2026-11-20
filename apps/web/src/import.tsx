@@ -4,7 +4,7 @@ import type { Dataset } from "./engine/dataset";
 import { currencyList, type Rates } from "./engine/money";
 import { buildDataset, FIELD_LABEL, guessMapping, REQUIRED, TEMPLATE, type Field, type Mapping } from "./engine/mapping";
 
-const OPTIONAL: Field[] = ["id", "score2", "merchant", "category", "country", "channel", "device", "decision"];
+const OPTIONAL: Field[] = ["id", "reported", "score2", "merchant", "category", "country", "channel", "device", "network", "decision"];
 const MAX_BYTES = 300 * 1024 * 1024;
 
 /** Mappings are remembered per header layout, in this browser only. */

@@ -3,7 +3,7 @@ import { CAT_FIELDS, type CatField, type Dataset } from "./dataset";
 
 /** The fields a file can provide. Four are required; the rest unlock more analysis. */
 export const REQUIRED = ["time", "amount", "score", "fraud"] as const;
-export type Field = (typeof REQUIRED)[number] | "id" | "score2" | CatField;
+export type Field = (typeof REQUIRED)[number] | "id" | "score2" | "reported" | CatField;
 
 export const FIELD_LABEL: Record<Field, string> = {
   time: "Time",
@@ -12,11 +12,13 @@ export const FIELD_LABEL: Record<Field, string> = {
   fraud: "Fraud outcome",
   id: "Transaction id",
   score2: "Second score",
+  reported: "Reported at",
   merchant: "Merchant",
   category: "Category",
   country: "Country",
   channel: "Channel",
   device: "Device",
+  network: "Card network",
   decision: "Decision",
 };
 
@@ -27,6 +29,8 @@ const ALIASES: Record<Field, string[]> = {
   fraud: ["fraud", "is_fraud", "isfraud", "label", "class", "target", "chargeback", "is_chargeback", "fraudulent"],
   id: ["id", "transaction_id", "txn_id", "trans_num", "payment_id", "charge_id", "order_id"],
   score2: ["score2", "challenger", "challenger_score", "new_score", "score_b"],
+  reported: ["reported_at", "reported", "report_date", "dispute_date", "disputed_at", "chargeback_date", "chargeback_at", "fraud_reported_at", "label_date"],
+  network: ["network", "card_network", "card_brand", "brand", "scheme", "card_scheme"],
   merchant: ["merchant", "merchant_name", "merchant_id", "store"],
   category: ["category", "mcc", "merchant_category", "product_category"],
   country: ["country", "country_code", "billing_country", "ip_country", "card_country"],
@@ -169,13 +173,20 @@ export function buildDataset(t: Table, m: Mapping, name: string, currency: strin
     why: {},
     features: [],
   };
+  if (m.reported !== undefined) {
+    // An empty or unreadable report date means nothing was reported; the payment still counts.
+    dataset.reported = rows.map((r) => timeOf(t.rows[r.i][m.reported!] ?? ""));
+    dataset.disputed = rows.map((r, k) => (r.f || Number.isFinite(dataset.reported![k]) ? 1 : 0));
+  }
   return { dataset, skipped, firstBad };
 }
 
-export const TEMPLATE = `id,time,amount,score,fraud,merchant,category,country,channel
-t1,2026-11-02T09:14:05Z,42.10,0.012,0,Northline Grocers,grocery,IE,card_present
-t2,2026-11-02T09:14:31Z,1899.00,0.874,1,Volt Electronics,electronics,NG,online
-t3,2026-11-02T09:15:02Z,7.99,0.003,0,Streamhaus,digital,IE,online
-t4,2026-11-02T09:16:47Z,260.00,0.231,0,Aster Travel,travel,FR,online
-t5,2026-11-02T10:02:10Z,15.00,0.640,1,Giftly,gift_cards,IE,online
+export { timeOf };
+
+export const TEMPLATE = `id,time,amount,score,fraud,reported_at,merchant,category,country,channel,network
+t1,2026-11-02T09:14:05Z,42.10,0.012,0,,Northline Grocers,grocery,IE,card_present,visa
+t2,2026-11-02T09:14:31Z,1899.00,0.874,1,2026-11-19T16:02:00Z,Volt Electronics,electronics,NG,online,mastercard
+t3,2026-11-02T09:15:02Z,7.99,0.003,0,,Streamhaus,digital,IE,online,visa
+t4,2026-11-02T09:16:47Z,260.00,0.231,0,2026-12-01T10:30:00Z,Aster Travel,travel,FR,online,visa
+t5,2026-11-02T10:02:10Z,15.00,0.640,1,2026-11-05T08:45:00Z,Giftly,gift_cards,IE,online,mastercard
 `;
