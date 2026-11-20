@@ -4,6 +4,7 @@ import { parseTable, type Table } from "./engine/csv";
 import type { Dataset } from "./engine/dataset";
 import { DISPUTE_FIELDS, DISPUTES_TEMPLATE, guessDisputeMapping, joinDisputes, type DisputeMapping } from "./engine/disputes";
 import { calibration } from "./engine/calibration";
+import { compareModels } from "./engine/compare";
 import { HORIZON_DAYS, type MaturityState } from "./engine/maturity";
 import { looksCnp, mcStatus, monitor, visaStatus, type Limits, type Side, type Status } from "./engine/monitor";
 import type { Costs, Outcome, Staffing, Thresholds } from "./engine/policy";
@@ -538,6 +539,65 @@ export function CalibrationModule({ d, model }: { d: Dataset; model: string }) {
       </div>
       <p className="text-[13px] text-smoke">
         Each band holds half the payments left, so the riskiest get their own. Expected calibration error {c.ece.toFixed(4)}. Amber: a band of 30 or more off by over half.
+      </p>
+    </div>
+  );
+}
+
+/* ───────────── champion and challenger */
+
+export function CompareModule({ d, costs, staffing, force, model, setModel }: { d: Dataset; costs: Costs; staffing: Staffing; force?: Uint8Array; model: string; setModel: (m: string) => void }) {
+  const m = useMoney();
+  const r = useMemo(() => compareModels(d, costs, staffing, force), [d, costs, staffing, force]);
+  const best = r.rows[0];
+  const second = r.rows[1];
+  return (
+    <div className="space-y-10">
+      <p className="max-w-3xl font-serif text-[clamp(1.5rem,2.6vw,2rem)] leading-snug">
+        {d.modelNames[best.model]} is cheapest, by <Amount v={second.total - best.total} serif /> over {d.modelNames[second.model]}.
+      </p>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[40rem] text-[15px]">
+          <thead>
+            <tr className="eyebrow text-left">
+              <th className="pb-3 font-normal">Model</th>
+              <th className="pb-3 text-right font-normal">Total cost</th>
+              <th className="pb-3 text-right font-normal">Fraud stopped</th>
+              <th className="pb-3 text-right font-normal">Fraud lost</th>
+              <th className="pb-3 text-right font-normal">Genuine declined</th>
+              <th className="pb-3 text-right font-normal">Reviews</th>
+              <th className="pb-3" />
+            </tr>
+          </thead>
+          <tbody>
+            {r.rows.map((x) => (
+              <tr key={x.model} className="border-t border-rule-soft">
+                <td className="py-3 text-ash">{d.modelNames[x.model]}</td>
+                <td className="figure py-3 text-right">{m.fmt(x.total * m.k)}</td>
+                <td className="figure py-3 text-right text-stopped">{m.fmt(x.fraudStoppedAmt * m.k)}</td>
+                <td className="figure py-3 text-right text-lost">{m.fmt(x.fraudLostAmt * m.k)}</td>
+                <td className="figure py-3 text-right text-declined">{x.genuineBlocked.toLocaleString("en")}</td>
+                <td className="figure py-3 text-right">
+                  {x.reviews.toLocaleString("en")}
+                  {x.expired > 0 && <span className="text-[13px] text-lost"> · {x.expired.toLocaleString("en")} timed out</span>}
+                </td>
+                <td className="py-3 pl-6 text-right text-[14px]">
+                  {x.model === model ? (
+                    <span className="text-smoke">in use</span>
+                  ) : (
+                    <button className="link" onClick={() => setModel(x.model)}>
+                      Use
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-[13px] text-smoke">
+        Each model at its own cheapest lines, with your costs, team and the rules in the policy.
+        {r.disagree !== null && ` At those lines the two decide ${r.disagree.toLocaleString("en")} payments differently.`}
       </p>
     </div>
   );

@@ -13,7 +13,7 @@ import { maturity, matureCut } from "./engine/maturity";
 import { DEFAULT_LIMITS, type Limits } from "./engine/monitor";
 import { compiles, forceOf, scoreField, type Rule } from "./engine/rules";
 import { decisionRecord } from "./engine/record";
-import { CalibrationModule, MaturityModule, MonitorModule, RulesModule } from "./operations";
+import { CalibrationModule, CompareModule, MaturityModule, MonitorModule, RulesModule } from "./operations";
 import { currencyList, loadRates, moneyFormat, niceStep, rateBetween, type Rates } from "./engine/money";
 import { cheapest, DEFAULT_COSTS, DEFAULT_STAFFING, evaluate, type Costs, type Outcome, type Staffing, type Thresholds } from "./engine/policy";
 import { dimensions, segment, type Dimension } from "./engine/segments";
@@ -445,6 +445,7 @@ const NAV = [
   ["#labels", "Labels"],
   ["#disputes", "Disputes"],
   ["#calibration", "Calibration"],
+  ["#models", "Models"],
   ["#data", "Your data"],
   ["#method", "Method"],
 ] as const;
@@ -564,7 +565,7 @@ function App() {
 
       <div className="mx-auto grid max-w-[72rem] gap-x-16 px-6 sm:px-10 lg:grid-cols-[8rem_1fr]">
         <nav className="sticky top-24 hidden h-fit space-y-2 pt-24 text-[14px] text-smoke lg:block" aria-label="Sections">
-          {NAV.map(([h, t]) => (
+          {NAV.filter(([h]) => h !== "#models" || d.models.length > 1).map(([h, t]) => (
             <a key={h} href={h} className="block hover:text-bone">
               {t}
             </a>
@@ -651,6 +652,22 @@ function App() {
           <Section id="calibration" kicker="Calibration" title="Does the score mean what it says?">
             <CalibrationModule d={d} model={model} />
           </Section>
+
+          {d.models.length > 1 && (
+            <Section id="models" kicker="Models" title="Champion and challenger.">
+              <CompareModule
+                d={d}
+                costs={costs}
+                staffing={staffing}
+                force={force}
+                model={model}
+                setModel={(m) => {
+                  setModel(m);
+                  setTh(cheapest(d, m, costs));
+                }}
+              />
+            </Section>
+          )}
 
           <Section id="data" kicker="Your data" title="Run it on your own transactions.">
             <Import current={d} rates={rates} onLoad={(next, note) => switchData(next, note)} onReset={() => switchData(null)} />

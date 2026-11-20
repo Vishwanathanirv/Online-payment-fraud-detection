@@ -120,3 +120,12 @@ test("calibration sets each score band against the fraud seen", async ({ page })
   await expect(c).toContainText("turned out to be fraud");
   await expect(c.getByRole("row")).toHaveCount(11);
 });
+
+test("models compete at their own cheapest lines, and one click switches", async ({ page }) => {
+  await page.goto("/");
+  const s = page.locator("#models");
+  await expect(s).toContainText("is cheapest, by");
+  await expect(s.getByRole("row")).toHaveCount(4);
+  await s.getByRole("button", { name: "Use" }).first().click();
+  await expect(s.getByText("in use")).toHaveCount(1);
+});

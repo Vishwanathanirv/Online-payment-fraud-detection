@@ -360,3 +360,23 @@ describe("calibration", () => {
     expect(calibration(d, "own")).toBeNull();
   });
 });
+
+describe("champion and challenger", () => {
+  it("gives each model its own cheapest lines and ranks them by total cost", async () => {
+    const { compareModels } = await import("../src/engine/compare");
+    const rows: Row[] = [];
+    for (let k = 0; k < 200; k++) rows.push({ t: k * 60, a: 100, s: 0, f: k % 20 === 0 ? 1 : 0 });
+    const d = ds(rows);
+    // The challenger knows which are fraud; the champion scores at random.
+    d.models = ["own", "own2"];
+    d.modelNames.own2 = "challenger";
+    d.score.own = rows.map((_, k) => ((k * 37) % 100) / 100);
+    d.score.own2 = rows.map((r) => (r.f ? 0.9 : 0.1));
+    d.probabilities.own2 = true;
+    const r = compareModels(d, costs, ample);
+    expect(r.rows[0].model).toBe("own2");
+    expect(r.rows[0].total).toBeLessThan(r.rows[1].total);
+    expect(r.rows[0].fraudLostAmt).toBe(0);
+    expect(r.disagree).toBeGreaterThan(0);
+  });
+});
