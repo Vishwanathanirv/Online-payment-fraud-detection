@@ -236,6 +236,7 @@ async function main() {
   mkdirSync("docs", { recursive: true });
   writeFileSync("docs/benchmark.json", JSON.stringify(out, null, 2) + "\n");
   writeReplay(test, testScores, thresholds, gbdt, time[c2]);
+  writeCaseModel(gbdt, fitPlatt(valid.X.map((x) => predictGbdt(gbdt, x)), valid.y), train);
 
   const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
   const eur = (v: number) => `€${Math.round(v).toLocaleString("en-US")}`;
@@ -258,8 +259,10 @@ async function main() {
 function writeReplay(test: { X: number[][]; y: number[]; amount: number[]; time: number[] }, scores: number[][], thresholds: number[], gbdt: ReturnType<typeof trainGbdt>["model"], startTime: number) {
   const r4 = (v: number) => Math.round(v * 1e4) / 1e4;
   const why: Record<number, [number, number][]> = {};
+  const raw: Record<number, number[]> = {};
   test.X.forEach((x, i) => {
     if (scores[0][i] < 0.005 && !test.y[i]) return;
+    raw[i] = x.map((v) => Math.round(v * 1e4) / 1e4);
     const phi = explainGbdt(gbdt, x);
     why[i] = phi
       .map((v, f) => [f, Math.round(v * 1000) / 1000] as [number, number])
@@ -279,9 +282,28 @@ function writeReplay(test: { X: number[][]; y: number[]; amount: number[]; time:
     fraud: test.y,
     score: scores.map((s) => s.map(r4)),
     why,
+    // The model inputs of every explained payment, so the app can ask the same trees "what if".
+    x: raw,
   };
   writeFileSync("apps/web/public/replay.json", JSON.stringify(replay));
   console.log(`· replay: ${test.X.length} payments, ${Object.keys(why).length} explained, apps/web/public/replay.json`);
+}
+
+/**
+ * The gradient-boosted trees that scored the test window, with their calibration and where genuine
+ * training payments sit on each input (5th, 50th, 95th percentile). The app's counterfactual search
+ * uses these to find the smallest believable change that would have let a flagged payment through.
+ */
+function writeCaseModel(gbdt: ReturnType<typeof trainGbdt>["model"], calibrator: { a: number; b: number }, train: { X: number[][]; y: number[] }) {
+  const r = (v: number) => Math.round(v * 1e6) / 1e6;
+  const genuine = train.X.filter((_, i) => !train.y[i]);
+  const quantiles = genuine[0].map((_, f) => {
+    const col = genuine.map((x) => x[f]).sort((a, b) => a - b);
+    return [0.05, 0.5, 0.95].map((q) => r(col[Math.floor(q * (col.length - 1))]));
+  });
+  const trees = gbdt.trees.map((t) => ({ feature: t.feature, threshold: t.threshold.map(r), left: t.left, right: t.right, value: t.value.map(r) }));
+  writeFileSync("apps/web/public/case-model.json", JSON.stringify({ base: r(gbdt.base), calibrator, quantiles, trees }));
+  console.log(`· case model: ${trees.length} trees, apps/web/public/case-model.json`);
 }
 
 main().catch((e) => {

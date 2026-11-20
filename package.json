@@ -2,7 +2,7 @@
   "name": "fraudlens",
   "private": true,
   "version": "2.0.0",
-  "description": "Real-time payment fraud detection: TypeScript ML (gradient-boosted trees, logistic regression, isolation forest), a streaming scoring API and an analyst dashboard.",
+  "description": "Payment-fraud detection you can see: gradient-boosted trees on real card data, a money dial, counterfactual case files and fraud-ring unmasking, all in the browser.",
   "license": "MIT",
   "type": "module",
   "workspaces": [
@@ -15,6 +15,7 @@
   "scripts": {
     "train": "tsx scripts/train.ts",
     "benchmark": "NODE_USE_ENV_PROXY=1 tsx scripts/benchmark.ts",
+    "rings": "tsx scripts/rings.ts",
     "dev": "concurrently -n api,web -c blue,green \"npm:dev -w apps/api\" \"npm:dev -w apps/web\"",
     "build": "npm run build -w apps/web && npm run build -w apps/api",
     "start": "node --disable-warning=ExperimentalWarning apps/api/dist/server.js",
