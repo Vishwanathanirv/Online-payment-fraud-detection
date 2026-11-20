@@ -146,13 +146,17 @@ export type Outcome = {
   queue: QueueResult;
 };
 
-export function evaluate(d: Dataset, model: string, th: Thresholds, costs: Costs, s: Staffing): Outcome {
+const RANK: Band[] = ["approve", "review", "block"];
+
+/** `force` comes from rules: 2 blocks a payment, 1 sends it to review at least, 0 leaves it to the score. */
+export function evaluate(d: Dataset, model: string, th: Thresholds, costs: Costs, s: Staffing, force?: Uint8Array): Outcome {
   const score = d.score[model];
   const n = d.t.length;
   const band: Band[] = new Array(n);
   const reviewItems: number[] = [];
   for (let i = 0; i < n; i++) {
     band[i] = bandOf(score[i], th);
+    if (force && force[i] > RANK.indexOf(band[i])) band[i] = RANK[force[i]];
     if (band[i] === "review") reviewItems.push(i);
   }
   const queue = runQueue(d, reviewItems, s, score);

@@ -23,12 +23,16 @@ export type Dataset = {
   /** Optional descriptive columns, by field: merchant, category, country, channel, device, decision. */
   cats: Partial<Record<CatField, string[]>>;
   id?: string[];
+  /** When each fraud or dispute was reported (seconds, same clock as t); NaN where none was. */
+  reported?: number[];
+  /** Payments that drew a dispute or chargeback, fraud or not. Without it, fraud labels stand in. */
+  disputed?: (0 | 1)[];
   /** TreeSHAP factors for the riskiest public payments, by row. */
   why: Record<string, [number, number][]>;
   features: string[];
 };
 
-export const CAT_FIELDS = ["merchant", "category", "country", "channel", "device", "decision"] as const;
+export const CAT_FIELDS = ["merchant", "category", "country", "channel", "device", "network", "decision"] as const;
 export type CatField = (typeof CAT_FIELDS)[number];
 
 export const CAT_LABEL: Record<CatField, string> = {
@@ -37,6 +41,7 @@ export const CAT_LABEL: Record<CatField, string> = {
   country: "Country",
   channel: "Channel",
   device: "Device",
+  network: "Card network",
   decision: "Decision",
 };
 
@@ -68,6 +73,29 @@ export function loadPublic(): Promise<Dataset> {
       features: r.features,
     }));
   return pending;
+}
+
+/** The payments where `keep` is set, with every column (and the explanations) carried along. */
+export function subset(d: Dataset, keep: (i: number) => boolean): Dataset {
+  const rows: number[] = [];
+  for (let i = 0; i < d.t.length; i++) if (keep(i)) rows.push(i);
+  const pick = <T,>(a: T[]) => rows.map((i) => a[i]);
+  const why: Dataset["why"] = {};
+  rows.forEach((i, k) => {
+    if (d.why[i]) why[k] = d.why[i];
+  });
+  return {
+    ...d,
+    t: pick(d.t),
+    amount: pick(d.amount),
+    fraud: pick(d.fraud),
+    score: Object.fromEntries(Object.entries(d.score).map(([m, s]) => [m, pick(s)])),
+    cats: Object.fromEntries(Object.entries(d.cats).map(([f, c]) => [f, pick(c)])),
+    id: d.id && pick(d.id),
+    reported: d.reported && pick(d.reported),
+    disputed: d.disputed && pick(d.disputed),
+    why,
+  };
 }
 
 export function totals(d: Dataset) {

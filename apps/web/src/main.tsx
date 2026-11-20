@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useMemo, useState } from "react";
+import { StrictMode, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "@fontsource/instrument-serif/400.css";
 import "@fontsource-variable/hanken-grotesk";
@@ -7,7 +7,12 @@ import "@fontsource/ibm-plex-mono/500.css";
 import "./index.css";
 import bench from "../../../docs/benchmark.json";
 import { LineChart, PaymentsChart, timeLabel } from "./charts";
-import { loadPublic, totals, type Dataset } from "./engine/dataset";
+import { decodeRules, encodeRules } from "./engine/backtest";
+import { loadPublic, subset, totals, type Dataset } from "./engine/dataset";
+import { maturity, matureCut } from "./engine/maturity";
+import { DEFAULT_LIMITS, type Limits } from "./engine/monitor";
+import { compiles, forceOf, scoreField, type Rule } from "./engine/rules";
+import { MaturityModule, MonitorModule, RulesModule } from "./operations";
 import { currencyList, loadRates, moneyFormat, niceStep, rateBetween, type Rates } from "./engine/money";
 import { cheapest, DEFAULT_COSTS, DEFAULT_STAFFING, evaluate, type Costs, type Outcome, type Staffing, type Thresholds } from "./engine/policy";
 import { dimensions, segment, type Dimension } from "./engine/segments";
@@ -21,19 +26,38 @@ for (const font of ['16px "Instrument Serif"', '16px "Hanken Grotesk Variable"',
 
 /* ───────────── settings in the address, so a view can be shared (never the data itself) */
 
-type Settings = { costs: Costs; staffing: Staffing; view: string };
+type Settings = { costs: Costs; staffing: Staffing; view: string; rules: Rule[]; limits: Limits; mature: boolean };
+const LIMIT_KEYS: [keyof Limits, string][] = [
+  ["visaRatio", "vr"],
+  ["visaCount", "vc"],
+  ["ecmRatio", "er"],
+  ["ecmCount", "ec"],
+  ["hecmRatio", "hr"],
+  ["hecmCount", "hc"],
+];
 function readHash(): Partial<Settings> {
   const p = new URLSearchParams(location.hash.slice(1));
-  const n = (k: string) => (p.has(k) && Number.isFinite(Number(p.get(k))) ? Number(p.get(k)) : undefined);
+  // Empty or negative values in a link fall back to the defaults.
+  const n = (k: string) => {
+    const v = p.get(k);
+    return v !== null && v.trim() !== "" && Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : undefined;
+  };
   const out: Partial<Settings> = {};
   if (n("a") !== undefined || n("min") !== undefined || n("to") !== undefined || p.get("o"))
     out.staffing = { analysts: n("a") ?? DEFAULT_STAFFING.analysts, minutesPerReview: n("min") ?? DEFAULT_STAFFING.minutesPerReview, timeoutMinutes: n("to") ?? DEFAULT_STAFFING.timeoutMinutes, order: p.get("o") === "oldest" ? "oldest" : "risk" };
   if (n("fm") !== undefined || n("rc") !== undefined || n("dc") !== undefined) out.costs = { fraudMultiple: n("fm") ?? DEFAULT_COSTS.fraudMultiple, reviewCost: n("rc") ?? DEFAULT_COSTS.reviewCost, declineShare: (n("dc") ?? DEFAULT_COSTS.declineShare * 100) / 100 };
   if (p.get("cur")) out.view = p.get("cur")!;
+  const rules = decodeRules(p.get("r"));
+  if (rules) out.rules = rules;
+  if (LIMIT_KEYS.some(([, k]) => n(k) !== undefined)) out.limits = Object.fromEntries(LIMIT_KEYS.map(([f, k]) => [f, n(k) === undefined ? DEFAULT_LIMITS[f] : f.endsWith("Ratio") ? n(k)! / 100 : n(k)!])) as Limits;
+  if (p.get("mat") === "1") out.mature = true;
   return out;
 }
 function writeHash(s: Settings) {
   const p = new URLSearchParams({ a: String(s.staffing.analysts), min: String(s.staffing.minutesPerReview), to: String(s.staffing.timeoutMinutes), o: s.staffing.order, fm: String(s.costs.fraudMultiple), rc: String(+s.costs.reviewCost.toFixed(4)), dc: String(+(s.costs.declineShare * 100).toFixed(2)), cur: s.view });
+  if (s.rules.some((r) => r.x.trim())) p.set("r", encodeRules(s.rules));
+  for (const [f, k] of LIMIT_KEYS) if (s.limits[f] !== DEFAULT_LIMITS[f]) p.set(k, String(f.endsWith("Ratio") ? +(s.limits[f] * 100).toFixed(2) : s.limits[f]));
+  if (s.mature) p.set("mat", "1");
   history.replaceState(null, "", `#${p}`);
 }
 
@@ -68,7 +92,7 @@ function ScoreInline({ value, prob, range, onChange, label }: { value: number; p
   );
 }
 
-function ThresholdsModule({ d, model, th, setTh, costs, setCosts, staffing, o }: { d: Dataset; model: string; th: Thresholds; setTh: (t: Thresholds) => void; costs: Costs; setCosts: (c: Costs) => void; staffing: Staffing; o: Outcome }) {
+function ThresholdsModule({ d, model, th, setTh, costs, setCosts, staffing, o, force }: { d: Dataset; model: string; th: Thresholds; setTh: (t: Thresholds) => void; costs: Costs; setCosts: (c: Costs) => void; staffing: Staffing; o: Outcome; force?: Uint8Array }) {
   const m = useMoney();
   const prob = d.probabilities[model];
   const sc = d.score[model];
@@ -85,10 +109,10 @@ function ThresholdsModule({ d, model, th, setTh, costs, setCosts, staffing, o }:
     return {
       points,
       xs: points.map((p) => fmtScore(p, prob)),
-      ideal: points.map((r) => evaluate(d, model, { block: th.block, review: r }, costs, ample).cost.total),
-      team: points.map((r) => evaluate(d, model, { block: th.block, review: r }, costs, staffing).cost.total),
+      ideal: points.map((r) => evaluate(d, model, { block: th.block, review: r }, costs, ample, force).cost.total),
+      team: points.map((r) => evaluate(d, model, { block: th.block, review: r }, costs, staffing, force).cost.total),
     };
-  }, [d, model, th.block, th.review, costs, staffing, sc, range, prob]);
+  }, [d, model, th.block, th.review, costs, staffing, sc, range, prob, force]);
   const mark = Math.max(0, curve.points.indexOf(th.review));
   const costStep = niceStep(m.k);
   const band = (b: "block" | "review" | "approve") => {
@@ -161,9 +185,9 @@ function ThresholdsModule({ d, model, th, setTh, costs, setCosts, staffing, o }:
 
 /* ───────────── staffing */
 
-function StaffingModule({ d, model, th, costs, staffing, setStaffing, o }: { d: Dataset; model: string; th: Thresholds; costs: Costs; staffing: Staffing; setStaffing: (s: Staffing) => void; o: Outcome }) {
+function StaffingModule({ d, model, th, costs, staffing, setStaffing, o, force }: { d: Dataset; model: string; th: Thresholds; costs: Costs; staffing: Staffing; setStaffing: (s: Staffing) => void; o: Outcome; force?: Uint8Array }) {
   const m = useMoney();
-  const curve = useMemo(() => Array.from({ length: 13 }, (_, n) => evaluate(d, model, th, costs, { ...staffing, analysts: n }).cost.total), [d, model, th, costs, staffing]);
+  const curve = useMemo(() => Array.from({ length: 13 }, (_, n) => evaluate(d, model, th, costs, { ...staffing, analysts: n }, force).cost.total), [d, model, th, costs, staffing, force]);
   const best = curve.reduce((b, v, i) => (v < curve[b] - 0.005 ? i : b), 0);
   const waits = [...o.queue.waits].sort((a, b) => a - b);
   const q = (p: number) => (waits.length ? waits[Math.min(waits.length - 1, Math.floor(p * waits.length))] : 0);
@@ -416,6 +440,9 @@ const NAV = [
   ["#staffing", "Staffing"],
   ["#segments", "Segments"],
   ["#cases", "Cases"],
+  ["#rules", "Rules"],
+  ["#labels", "Labels"],
+  ["#disputes", "Disputes"],
   ["#data", "Your data"],
   ["#method", "Method"],
 ] as const;
@@ -431,22 +458,39 @@ function App() {
   const [costs, setCosts] = useState<Costs>(init.costs ?? DEFAULT_COSTS);
   const [staffing, setStaffing] = useState<Staffing>(init.staffing ?? DEFAULT_STAFFING);
   const [th, setTh] = useState<Thresholds | null>(null);
+  const [ruleState, setRules] = useState<Rule[] | null>(init.rules ?? null);
+  const [limits, setLimits] = useState<Limits>(init.limits ?? DEFAULT_LIMITS);
+  const [mature, setMature] = useState(init.mature ?? false);
+  // After a disputes join, the lines are re-tuned on the data shown (the mature part, if that is on).
+  const [retune, setRetune] = useState(false);
   useEffect(() => {
     loadPublic().then(setPub, (e: Error) => setError(e.message));
     loadRates().then(setRates, () => setRates(null));
   }, []);
 
-  const d = own?.d ?? pub;
+  const base = own?.d ?? pub;
+  const mat = useMemo(() => (base ? maturity(base) : null), [base]);
+  // With maturity on, every section judges only payments old enough for their reports to be in.
+  const d = useMemo(() => (base && mature && mat?.ok ? subset(base, (i) => base.t[i] <= matureCut(mat.m)) : base), [base, mature, mat]);
+  // Until a rule is written, one example shows the backtester working on whatever data is open.
+  const rules = useMemo<Rule[]>(() => ruleState ?? (d ? [{ x: `amount >= 500 and ${scoreField(d.models[0])} >= 0.05`, a: "review", on: false }] : []), [ruleState, d]);
+  // Typing in a rule that is in the policy recomputes every section, so that waits for a pause.
+  const settledRules = useDeferredValue(rules);
+  const force = useMemo(() => (d ? forceOf(d, settledRules) : undefined), [d, settledRules]);
   useEffect(() => {
-    if (d && !th) setTh(cheapest(d, d.models.includes(model) ? model : d.models[0], costs));
-  }, [d, th, model, costs]);
-  useEffect(() => writeHash({ costs, staffing, view }), [costs, staffing, view]);
+    if (d && (!th || retune)) {
+      setTh(cheapest(d, d.models.includes(model) ? model : d.models[0], costs));
+      setRetune(false);
+    }
+  }, [d, th, model, costs, retune]);
+  useEffect(() => writeHash({ costs, staffing, view, rules: ruleState ?? [], limits, mature }), [costs, staffing, view, ruleState, limits, mature]);
 
   const k = d ? rateBetween(rates, d.currency, view) : 1;
   const money = useMemo<Money>(() => ({ view, k, fmt: moneyFormat(view) }), [view, k]);
   const sum = useMemo(() => (d ? totals(d) : null), [d]);
-  const o = useMemo(() => (d && th ? evaluate(d, model, th, costs, staffing) : null), [d, th, model, costs, staffing]);
+  const o = useMemo(() => (d && th ? evaluate(d, model, th, costs, staffing, force) : null), [d, th, model, costs, staffing, force]);
   const requests = useRequestsSince(own?.at ?? null);
+  const live = d ? settledRules.filter((r) => r.on && compiles(d, r.x)).length : 0;
 
   const switchData = (next: Dataset | null, note: string | null = null) => {
     const target = next ?? pub!;
@@ -456,7 +500,14 @@ function App() {
     setTh(cheapest(target, target.models[0], c));
     setOwn(next ? { d: next, at: performance.now(), note } : null);
     setView(target.currency);
+    setMature(false);
     document.getElementById("overview")?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Disputes joined onto the open file: same file, same privacy clock, new labels.
+  const joinData = (next: Dataset, note: string) => {
+    setOwn((prev) => (prev ? { ...prev, d: next, note } : prev));
+    setRetune(true);
   };
 
   if (error) return <p className="mx-auto max-w-xl px-6 py-32 text-ash">{error}</p>;
@@ -520,7 +571,11 @@ function App() {
 
         <main className="min-w-0">
           <section id="overview" className="arrive scroll-mt-20 pb-20 pt-20 md:pt-28">
-            <p className="eyebrow">{d.kind === "public" ? "ULB / Worldline · real card payments · test window" : `Your file · ${d.currency}`}</p>
+            <p className="eyebrow">
+              {d.kind === "public" ? "ULB / Worldline · real card payments · test window" : `Your file · ${d.currency}`}
+              {mature && mat?.ok && ` · payments older than ${mat.m.matureAfter} days`}
+              {live > 0 && ` · ${live} ${live === 1 ? "rule" : "rules"} in the policy`}
+            </p>
             <h1 className="mt-6 max-w-[20ch] font-serif text-[clamp(2.2rem,5vw,4.2rem)] leading-[1.06] tracking-[-0.015em]">
               Stops <Amount v={o.fraud.stoppedAmt} className="text-stopped" serif /> of <Amount v={sum.fraudAmt} serif /> fraud. Saves <Amount v={saved} serif /> against no screening.
             </h1>
@@ -550,11 +605,11 @@ function App() {
           </section>
 
           <Section id="thresholds" kicker="Thresholds" title="Where to draw the lines.">
-            <ThresholdsModule d={d} model={model} th={th} setTh={setTh} costs={costs} setCosts={setCosts} staffing={staffing} o={o} />
+            <ThresholdsModule d={d} model={model} th={th} setTh={setTh} costs={costs} setCosts={setCosts} staffing={staffing} o={o} force={force} />
           </Section>
 
           <Section id="staffing" kicker="Staffing" title="Can the team keep up?">
-            <StaffingModule d={d} model={model} th={th} costs={costs} staffing={staffing} setStaffing={setStaffing} o={o} />
+            <StaffingModule d={d} model={model} th={th} costs={costs} staffing={staffing} setStaffing={setStaffing} o={o} force={force} />
           </Section>
 
           <Section id="segments" kicker="Segments" title="Where the fraud is.">
@@ -563,6 +618,18 @@ function App() {
 
           <Section id="cases" kicker="Cases" title="Everything the policy touched.">
             <Cases d={d} model={model} o={o} />
+          </Section>
+
+          <Section id="rules" kicker="Rules" title="Test a rule on history first.">
+            <RulesModule d={d} model={model} th={th} costs={costs} staffing={staffing} rules={rules} setRules={setRules} />
+          </Section>
+
+          <Section id="labels" kicker="Labels" title="Recent fraud isn't reported yet.">
+            <MaturityModule base={base!} st={mat!} mature={mature} setMature={setMature} onJoin={joinData} />
+          </Section>
+
+          <Section id="disputes" kicker="Disputes" title="Against the card networks' limits.">
+            <MonitorModule key={`${d.name}:${d.kind}`} d={d} o={o} limits={limits} setLimits={setLimits} />
           </Section>
 
           <Section id="data" kicker="Your data" title="Run it on your own transactions.">
@@ -575,7 +642,8 @@ function App() {
                 <li>Block at or above the block line. Review between the lines. Approve below.</li>
                 <li>Reviews queue as they arrive. Each analyst takes one at a time. A review not started before the timeout is approved.</li>
                 <li>A reviewed fraud is stopped. A declined genuine payment costs the decline share of its amount.</li>
-                <li>Cheapest: the lowest total cost over every pair of lines, with every review done. The capacity version caps reviews at what the team can handle.</li>
+                <li>Cheapest: the lowest total cost over every pair of lines, with every review done. The capacity version caps reviews at what the team can handle. Found on the score alone; rules in the policy apply on top.</li>
+                <li>A rule's effect: the whole policy run with and without it, queue included. Block rules win over review rules; neither lowers what the score decided.</li>
                 <li>
                   Public data: {bench.dataset.rows.toLocaleString("en")} card payments, September 2013, {bench.dataset.licence}. Split by time; no model saw the last 20%, shown here. Calibration error {bench.calibration.eceAfter.toFixed(4)}.
                 </li>
