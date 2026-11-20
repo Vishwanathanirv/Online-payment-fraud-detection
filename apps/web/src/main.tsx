@@ -13,7 +13,7 @@ import { maturity, matureCut } from "./engine/maturity";
 import { DEFAULT_LIMITS, type Limits } from "./engine/monitor";
 import { compiles, forceOf, scoreField, type Rule } from "./engine/rules";
 import { decisionRecord } from "./engine/record";
-import { MaturityModule, MonitorModule, RulesModule } from "./operations";
+import { CalibrationModule, MaturityModule, MonitorModule, RulesModule } from "./operations";
 import { currencyList, loadRates, moneyFormat, niceStep, rateBetween, type Rates } from "./engine/money";
 import { cheapest, DEFAULT_COSTS, DEFAULT_STAFFING, evaluate, type Costs, type Outcome, type Staffing, type Thresholds } from "./engine/policy";
 import { dimensions, segment, type Dimension } from "./engine/segments";
@@ -444,6 +444,7 @@ const NAV = [
   ["#rules", "Rules"],
   ["#labels", "Labels"],
   ["#disputes", "Disputes"],
+  ["#calibration", "Calibration"],
   ["#data", "Your data"],
   ["#method", "Method"],
 ] as const;
@@ -645,6 +646,10 @@ function App() {
 
           <Section id="disputes" kicker="Disputes" title="Against the card networks' limits.">
             <MonitorModule key={`${d.name}:${d.kind}`} d={d} o={o} limits={limits} setLimits={setLimits} />
+          </Section>
+
+          <Section id="calibration" kicker="Calibration" title="Does the score mean what it says?">
+            <CalibrationModule d={d} model={model} />
           </Section>
 
           <Section id="data" kicker="Your data" title="Run it on your own transactions.">

@@ -3,6 +3,7 @@ import { backtest, RECENT_SHARE, type RuleReport } from "./engine/backtest";
 import { parseTable, type Table } from "./engine/csv";
 import type { Dataset } from "./engine/dataset";
 import { DISPUTE_FIELDS, DISPUTES_TEMPLATE, guessDisputeMapping, joinDisputes, type DisputeMapping } from "./engine/disputes";
+import { calibration } from "./engine/calibration";
 import { HORIZON_DAYS, type MaturityState } from "./engine/maturity";
 import { looksCnp, mcStatus, monitor, visaStatus, type Limits, type Side, type Status } from "./engine/monitor";
 import type { Costs, Outcome, Staffing, Thresholds } from "./engine/policy";
@@ -492,6 +493,52 @@ export function MonitorModule({ d, o, limits, setLimits }: MonitorProps) {
         {r.outside > 0 && <li>{r.outside.toLocaleString("en")} reports are dated after the file's last month and set aside.</li>}
         <li>Thresholds: Visa Acquirer Monitoring Program fact sheet (merchant level, 1.5% from 1 April 2026 in Asia Pacific, Canada, Europe and the US); Mastercard Excessive Chargeback Program. Your acquirer's figures win.</li>
       </ul>
+    </div>
+  );
+}
+
+/* ───────────── calibration */
+
+export function CalibrationModule({ d, model }: { d: Dataset; model: string }) {
+  const c = useMemo(() => calibration(d, model), [d, model]);
+  if (!c) return <p className="prose-note max-w-2xl text-[16px]">{d.probabilities[model] ? "Too few payments to judge." : "This score isn't a probability (0 to 1), so there's nothing to calibrate against."}</p>;
+  const ratio = c.overall.observed ? c.overall.predicted / c.overall.observed : Infinity;
+  return (
+    <div className="space-y-10">
+      <p className="max-w-3xl font-serif text-[clamp(1.5rem,2.6vw,2rem)] leading-snug">
+        Scores average {pct(c.overall.predicted, 2)}; {pct(c.overall.observed, 2)} turned out to be fraud.{" "}
+        {Number.isFinite(ratio) && Math.abs(ratio - 1) > 0.2 ? `The score ${ratio > 1 ? "overstates" : "understates"} risk by ${ratio > 1 ? ratio.toFixed(1) : (1 / ratio).toFixed(1)}×.` : "Close to true on average."}
+      </p>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[32rem] max-w-3xl text-[15px]">
+          <thead>
+            <tr className="eyebrow text-left">
+              <th className="pb-3 font-normal">Scores</th>
+              <th className="pb-3 text-right font-normal">Payments</th>
+              <th className="pb-3 text-right font-normal">Predicted</th>
+              <th className="pb-3 text-right font-normal">Seen</th>
+            </tr>
+          </thead>
+          <tbody>
+            {c.bands.map((b) => {
+              const off = b.n >= 30 && Math.abs(b.predicted - b.observed) > Math.max(0.02, b.observed * 0.5);
+              return (
+                <tr key={b.lo + ":" + b.hi} className="border-t border-rule-soft">
+                  <td className="figure py-3 text-ash">
+                    {pct(b.lo, b.lo < 0.01 ? 2 : 1)}–{pct(b.hi, b.hi < 0.01 ? 2 : 1)}
+                  </td>
+                  <td className="figure py-3 text-right">{b.n.toLocaleString("en")}</td>
+                  <td className="figure py-3 text-right">{pct(b.predicted, 2)}</td>
+                  <td className={`figure py-3 text-right ${off ? "text-declined" : ""}`}>{pct(b.observed, 2)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-[13px] text-smoke">
+        Each band holds half the payments left, so the riskiest get their own. Expected calibration error {c.ece.toFixed(4)}. Amber: a band of 30 or more off by over half.
+      </p>
     </div>
   );
 }

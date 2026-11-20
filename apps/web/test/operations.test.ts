@@ -334,3 +334,29 @@ describe("decision record", () => {
     expect(text).not.toContain("secret");
   });
 });
+
+describe("calibration", () => {
+  it("compares each band's mean score with the fraud seen, finer at the top", async () => {
+    const { calibration } = await import("../src/engine/calibration");
+    // Perfectly calibrated: score 0.5 for the top 100 (half fraud), 0 for the rest (no fraud).
+    const rows: Row[] = [];
+    for (let k = 0; k < 900; k++) rows.push({ t: k, a: 1, s: 0, f: 0 });
+    for (let k = 0; k < 100; k++) rows.push({ t: 900 + k, a: 1, s: 0.5, f: (k % 2) as 0 | 1 });
+    const c = calibration(ds(rows), "own")!;
+    // Tied scores split across the small top bands, so the gap is near zero, not exactly zero.
+    expect(c.ece).toBeLessThan(0.005);
+    expect(c.overall.observed).toBeCloseTo(0.05);
+    expect(c.bands[0].n).toBe(500);
+    expect(c.bands[c.bands.length - 1].n).toBeLessThan(5);
+    expect(c.bands.reduce((a, b) => a + b.n, 0)).toBe(1000);
+    // Overconfident: everything scored 0.9, nothing is fraud.
+    expect(calibration(ds(rows.map((r) => ({ ...r, s: 0.9, f: 0 }))), "own")!.ece).toBeCloseTo(0.9);
+  });
+
+  it("only applies to probabilities and enough payments", async () => {
+    const { calibration } = await import("../src/engine/calibration");
+    const d = ds([{ t: 0, a: 1, s: 3, f: 1 }]);
+    d.probabilities.own = false;
+    expect(calibration(d, "own")).toBeNull();
+  });
+});

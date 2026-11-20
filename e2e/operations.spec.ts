@@ -113,3 +113,10 @@ test("the decision record downloads with the policy and its outcome", async ({ p
   expect(text).toContain("Block at score >=");
   expect(text).toContain("Total cost: EUR");
 });
+
+test("calibration sets each score band against the fraud seen", async ({ page }) => {
+  await page.goto("/");
+  const c = page.locator("#calibration");
+  await expect(c).toContainText("turned out to be fraud");
+  await expect(c.getByRole("row")).toHaveCount(11);
+});
