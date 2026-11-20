@@ -368,7 +368,7 @@ export function MaturityModule({ base, st, mature, setMature, onJoin }: Maturity
         </span>
       </label>
       <p className="text-[13px] text-smoke">
-        {m.censored ? `Fewer than 20 reports on payments ${HORIZON_DAYS}+ days old, so delays include young payments and slow reports are under-counted.` : `Delays measured on payments at least ${HORIZON_DAYS} days old.`} Each reported fraud counts for those like it not yet reported: 1 ÷ the share of reports in at its age. As of{" "}
+        {m.censored ? `Fewer than 20 reports on payments ${HORIZON_DAYS}+ days old, so delays include young payments and slow reports are under-counted.` : `Delays measured on payments at least ${HORIZON_DAYS} days old; reports later than the file's history can show are under-counted.`} Each reported fraud counts for those like it not yet reported: 1 ÷ the share of reports in at its age. As of{" "}
         {new Date(m.asOf * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}, the file's latest date.
       </p>
       {canJoin && <DisputesJoin d={base} onJoin={onJoin} />}
@@ -402,15 +402,17 @@ function Cell({ s, status }: { s: Side; status: Status }) {
 type MonitorProps = { d: Dataset; o: Outcome; limits: Limits; setLimits: (l: Limits) => void };
 
 export function MonitorModule({ d, o, limits, setLimits }: MonitorProps) {
-  const channels = useMemo(() => {
+  // Every channel value, most common first. All of them are judged; only the top 12 are listed to tick.
+  const allChannels = useMemo(() => {
     const c = d.cats.channel;
     if (!c) return [];
     const n = new Map<string, number>();
     for (const v of c) n.set(v, (n.get(v) ?? 0) + 1);
-    return [...n.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([v]) => v);
+    return [...n.entries()].sort((a, b) => b[1] - a[1]).map(([v]) => v);
   }, [d]);
+  const channels = allChannels.slice(0, 12);
   const [cnp, setCnp] = useState<Set<string> | null>(null);
-  const cnpValues = useMemo(() => (channels.length ? (cnp ?? new Set(channels.filter(looksCnp))) : null), [channels, cnp]);
+  const cnpValues = useMemo(() => (allChannels.length ? (cnp ?? new Set(allChannels.filter(looksCnp))) : null), [allChannels, cnp]);
   const r = useMemo(() => monitor(d, o, { cnpValues }), [d, o, cnpValues]);
   const set = (k: keyof Limits, v: number) => setLimits({ ...limits, [k]: v });
   const ratio = (k: keyof Limits, label: string) => <Inline value={Math.round(limits[k] * 1000) / 10} display={`${(limits[k] * 100).toFixed(1)}%`} min={0.1} max={10} step={0.1} label={label} onChange={(v) => set(k, v / 100)} />;
