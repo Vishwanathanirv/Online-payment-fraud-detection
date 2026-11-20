@@ -63,11 +63,12 @@ export function challenge(bundle: ModelBundle, rows: OutcomeRow[], opts: { maxNe
     throw new NotEnoughData(`Need at least 20 confirmed frauds to train on and 8 to test on (have ${trainFraud} and ${testFraud}). Let more traffic flow, or label more cases.`);
   }
 
-  // Analyst verdicts are the most trustworthy labels, so they count double.
-  const weightRows = train.flatMap((r) => (r.source === "analyst" ? [r, r] : [r]));
-  const vCut = Math.floor(weightRows.length * 0.8);
-  const fitRows = weightRows.slice(0, vCut);
-  const validRows = weightRows.slice(vCut);
+  // The last fifth of the training window (by time) is held out for early stopping and
+  // calibration, so the challenger is never calibrated on rows its new trees were fitted on.
+  // Analyst verdicts are the most trustworthy labels, so they count double when fitting.
+  const vCut = Math.floor(train.length * 0.8);
+  const fitRows = train.slice(0, vCut).flatMap((r) => (r.source === "analyst" ? [r, r] : [r]));
+  const validRows = train.slice(vCut);
   const { model } = trainGbdt(
     fitRows.map((r) => r.x),
     fitRows.map((r) => r.y),
@@ -76,7 +77,7 @@ export function challenge(bundle: ModelBundle, rows: OutcomeRow[], opts: { maxNe
     bundle.gbdt,
   );
   const newTrees = model.trees.length - bundle.gbdt.trees.length;
-  const calibrator = newTrees ? fitPlatt(train.map((r) => sigmoid(margin(model, r.x))), train.map((r) => r.y)) : bundle.calibrator;
+  const calibrator = newTrees ? fitPlatt(validRows.map((r) => sigmoid(margin(model, r.x))), validRows.map((r) => r.y)) : bundle.calibrator;
 
   const y = test.map((r) => r.y);
   const amount = test.map((r) => r.amount);

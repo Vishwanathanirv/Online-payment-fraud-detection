@@ -61,14 +61,18 @@ export const DEFAULT_RULES: Rule[] = [
 
 const rank: Record<Decision, number> = { approve: 0, review: 1, block: 2 };
 
-function reasonFor(feature: FeatureName, value: number, t: Transaction): string {
+export function reasonFor(feature: FeatureName, value: number, t: Transaction): string {
   switch (feature) {
     case "amount_vs_card_avg":
       return `${value.toFixed(1)}× this card's usual spend`;
     case "amount_zscore":
       return value > 0 ? "Amount is far above this card's normal range" : "Amount is far below this card's normal range";
-    case "amount_log":
-      return `High amount (₹${Math.round(t.amount).toLocaleString("en-IN")})`;
+    case "amount_log": {
+      const a = `₹${Math.round(t.amount).toLocaleString("en-IN")}`;
+      if (t.amount >= 10_000) return `High amount (${a})`;
+      if (t.amount < 500) return `Small amount (${a}), typical of card testing`;
+      return `Amount (${a}) fits recent fraud`;
+    }
     case "small_txn_count_1h":
       return `${value} tiny charges in the last hour`;
     case "txn_count_1h":
@@ -92,11 +96,16 @@ function reasonFor(feature: FeatureName, value: number, t: Transaction): string 
     case "hour_deviation":
       return `${value.toFixed(1)} hours away from this card's usual time`;
     case "category_risk":
-      return `High-risk category (${t.category.replace("_", " ")})`;
+      // The model can learn that a normally safe category is being hit (a compromised grocery
+      // chain, say), so only call the category high-risk when it is.
+      return value >= 0.4 ? `High-risk category (${t.category.replace("_", " ")})` : `${t.category.replace("_", " ")} payments are being hit by fraud`;
     case "device_other_cards_24h":
       return `This device paid with ${value} other card${value === 1 ? "" : "s"} in the last 24 hours`;
-    case "mins_since_last_log":
-      return `Only ${Math.max(0, Math.round(Math.expm1(value)))} min since the previous transaction`;
+    case "mins_since_last_log": {
+      const mins = Math.max(0, Math.round(Math.expm1(value)));
+      if (mins < 60) return `Only ${mins} min since the previous transaction`;
+      return mins < 2880 ? `First payment in ${Math.round(mins / 60)} hours` : `First payment in ${Math.round(mins / 1440)} days`;
+    }
     default:
       return FEATURE_LABELS[feature];
   }

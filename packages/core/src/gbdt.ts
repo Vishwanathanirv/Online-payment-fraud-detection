@@ -247,6 +247,8 @@ export function trainGbdt(X: number[][], y: number[], params: Partial<GbdtParams
   const h = new Float64Array(n);
   const trees: Tree[] = [];
   const gain = init ? [...init.gain] : new Array(F).fill(0);
+  // Split gain per tree, so trees that early stopping throws away don't count towards importance.
+  const treeGain: number[][] = [];
   const history: FitResult["history"] = [];
   let best = Infinity;
   let bestAt = 0;
@@ -276,6 +278,8 @@ export function trainGbdt(X: number[][], y: number[], params: Partial<GbdtParams
     for (let i = 0; i < n; i++) if (y[i] === 1 || rng.next() < p.subsample) rows.push(i); // keep every rare positive
     const feats = Array.from({ length: F }, (_, f) => f).filter(() => rng.next() < p.colsample);
     const tree: Tree = { feature: [], threshold: [], left: [], right: [], value: [], cover: [] };
+    const tg = new Array(F).fill(0);
+    treeGain.push(tg);
 
     const build = (idx: number[], depth: number): number => {
       let G = 0;
@@ -323,7 +327,7 @@ export function trainGbdt(X: number[][], y: number[], params: Partial<GbdtParams
       const R: number[] = [];
       const col = binned[bestF];
       for (const i of idx) (col[i] <= bestBin ? L : R).push(i);
-      gain[bestF] += bestGain;
+      tg[bestF] += bestGain;
       tree.feature[node] = bestF;
       tree.threshold[node] = edges[bestF][bestBin];
       tree.left[node] = build(L, depth + 1);
@@ -349,5 +353,6 @@ export function trainGbdt(X: number[][], y: number[], params: Partial<GbdtParams
   }
   const keep = valid ? (init ? bestAt : Math.max(1, bestAt)) : trees.length;
   const kept = trees.slice(0, keep);
+  for (const tg of treeGain.slice(0, keep)) for (let f = 0; f < F; f++) gain[f] += tg[f];
   return { model: { kind: "gbdt", base, trees: init ? [...init.trees, ...kept] : kept, featureCount: F, gain }, history };
 }

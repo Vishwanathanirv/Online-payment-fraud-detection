@@ -21,7 +21,7 @@ Each model is tested on the **last 14 days of a 90-day simulation**, which it ne
 | Logistic regression (baseline) | 0.805 | 0.942 | 81.0% | 63.6% | 84.4% |
 | Isolation forest (no labels) | 0.493 | 0.922 | 58.9% | 46.3% | 78.4% |
 
-- At a 1% false-positive rate, the production model still catches **84.1%** of fraud.
+- At a 1% false-positive rate, the production model still catches **86.0%** of fraud.
 - Calibration cuts the expected calibration error from **0.062 to 0.0004**. So a score of 20% really means about a 1-in-5 chance of fraud.
 - The thresholds are set by **business cost**, not by guesswork. An alert is sent for review at the risk level that minimises missed-fraud losses plus ₹500 per review. A payment is blocked only when precision is above 90%.
 
@@ -47,7 +47,7 @@ All data is synthetic, so these numbers describe the simulator, not a real bank.
   - logistic regression trained with Adam
   - isolation forest
   - Platt calibration
-- **Exact explanations.** Every score is broken down with exact **TreeSHAP** (Lundberg et al., 2018), implemented from scratch and tested against brute-force Shapley values. Contributions add up exactly to the model's score, and come with plain-English reasons such as "6.2× this card's usual spend" or "This device paid with 5 other cards in the last 24 hours". The drawer shows the strongest signals in both directions: what pushed risk up and what pulled it down. Risky payments are explained the moment they are scored; safe ones are explained when someone opens them, which is most of the work saved (TreeSHAP is about 70% of scoring time) and lets the demo open in about a second.
+- **Exact explanations.** Every score is broken down with exact **TreeSHAP** (Lundberg et al., 2018), implemented from scratch and tested against brute-force Shapley values. Contributions add up exactly to the model's raw score (its log-odds before calibration, relative to the average payment), and come with plain-English reasons such as "6.2× this card's usual spend" or "This device paid with 5 other cards in the last 24 hours". The drawer shows the strongest signals in both directions: what pushed risk up and what pulled it down. Risky payments are explained the moment they are scored; safe ones are explained when someone opens them, which is most of the work saved (TreeSHAP is about 70% of scoring time) and lets the demo open in about a second.
 - **Fraud-ring detection.** Cards and devices from the last six hours form a graph. Union–find joins cards linked through shared devices, and each group is scored by how densely cards are packed onto devices, how concentrated the money is on one merchant, and how much the model already flagged. Households (two cards on a family tablet) score zero. An analyst can block a ring, and every later payment from its devices is declined whatever card is used.
 - **Feedback loop with champion/challenger.** Analyst verdicts and chargebacks become training data. A challenger continues boosting from the live model (warm start: the old trees stay, new trees fix recent mistakes), is tested on later traffic it never saw at the **same alert workload** as the live model, and is promoted only if it ranks fraud better without catching less. Model versions are tracked.
 - **Online feature store.** 21 behavioural features per card and device: spending baselines, velocity, new device, new merchant or new category, distance from home, implied travel speed and time-of-day habits. The same code builds training data and scores live traffic, so there is **no training/serving skew**.
