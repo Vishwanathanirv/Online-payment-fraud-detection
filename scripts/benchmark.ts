@@ -162,8 +162,25 @@ async function main() {
   const sum = (v: number[]) => v.reduce((a, b) => a + b, 0);
   console.log(`· ${X.length} payments · train ${train.X.length} (${sum(train.y)} fraud) · valid ${valid.X.length} (${sum(valid.y)}) · test ${test.X.length} (${sum(test.y)})`);
 
-  const { model: gbdt } = trainGbdt(train.X, train.y, { posWeight: 5, seed: 7 }, { X: valid.X, y: valid.y });
-  console.log(`· gradient-boosted trees: ${gbdt.trees.length} trees`);
+  // A small grid, chosen by PR-AUC on validation. The test window plays no part in the choice.
+  const grid = [
+    { depth: 3, learningRate: 0.05, posWeight: 1 },
+    { depth: 3, learningRate: 0.05, posWeight: 5 },
+    { depth: 5, learningRate: 0.05, posWeight: 1 },
+    { depth: 5, learningRate: 0.05, posWeight: 5 },
+    { depth: 5, learningRate: 0.1, posWeight: 5 },
+    { depth: 7, learningRate: 0.05, posWeight: 5 },
+  ];
+  let gbdt = null as unknown as ReturnType<typeof trainGbdt>["model"];
+  let bestValid = -1;
+  const search: { params: (typeof grid)[number]; trees: number; validPrAuc: number }[] = [];
+  for (const g of grid) {
+    const { model } = trainGbdt(train.X, train.y, { ...g, trees: 400, earlyStopping: 40, seed: 7 }, { X: valid.X, y: valid.y });
+    const ap = averagePrecision(valid.X.map((x) => predictGbdt(model, x)), valid.y);
+    search.push({ params: g, trees: model.trees.length, validPrAuc: ap });
+    console.log(`· gbdt depth ${g.depth}, lr ${g.learningRate}, posWeight ${g.posWeight}: ${model.trees.length} trees, validation PR-AUC ${ap.toFixed(3)}`);
+    if (ap > bestValid) [bestValid, gbdt] = [ap, model];
+  }
   const logreg = trainLogReg(train.X, train.y, { posWeight: 5 });
   const iforest = trainIForest(train.X.filter((_, i) => !train.y[i]), { trees: 200 });
 
@@ -207,6 +224,7 @@ async function main() {
     },
     test: { payments: test.X.length, fraud: sum(test.y), fraudAmountEur: totalFraud },
     calibration,
+    gbdtSearch: search,
     results,
     runtimeSeconds: Math.round((performance.now() - t0) / 100) / 10,
   };

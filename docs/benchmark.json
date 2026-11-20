@@ -1,0 +1,146 @@
+{
+  "dataset": {
+    "name": "Credit Card Fraud Detection (ULB Machine Learning Group and Worldline)",
+    "licence": "Open Database License (ODbL) 1.0",
+    "source": "https://storage.googleapis.com/download.tensorflow.org/data/creditcard.csv",
+    "sha256": "76274b691b16a6c49d3f159c883398e03ccd6d1ee12d9d8ee38f4b4b98551a89",
+    "rows": 284807,
+    "fraud": 492
+  },
+  "protocol": {
+    "split": "by time: first 60% train, next 20% validation (early stopping, calibration, threshold), last 20% test",
+    "trainHours": [
+      0,
+      33.44305555555555
+    ],
+    "validHours": [
+      33.443333333333335,
+      40.34638888888889
+    ],
+    "testHours": [
+      40.346666666666664,
+      47.99777777777778
+    ],
+    "reviewCostEur": 5,
+    "bootstrap": 200
+  },
+  "test": {
+    "payments": 56962,
+    "fraud": 75,
+    "fraudAmountEur": 7729.260000000003
+  },
+  "calibration": {
+    "eceBefore": 0.0005193421072752886,
+    "eceAfter": 0.00027825583792019215
+  },
+  "gbdtSearch": [
+    {
+      "params": {
+        "depth": 3,
+        "learningRate": 0.05,
+        "posWeight": 1
+      },
+      "trees": 141,
+      "validPrAuc": 0.751396240318625
+    },
+    {
+      "params": {
+        "depth": 3,
+        "learningRate": 0.05,
+        "posWeight": 5
+      },
+      "trees": 170,
+      "validPrAuc": 0.7437176007207015
+    },
+    {
+      "params": {
+        "depth": 5,
+        "learningRate": 0.05,
+        "posWeight": 1
+      },
+      "trees": 101,
+      "validPrAuc": 0.7505459396915477
+    },
+    {
+      "params": {
+        "depth": 5,
+        "learningRate": 0.05,
+        "posWeight": 5
+      },
+      "trees": 110,
+      "validPrAuc": 0.7342986334737356
+    },
+    {
+      "params": {
+        "depth": 5,
+        "learningRate": 0.1,
+        "posWeight": 5
+      },
+      "trees": 55,
+      "validPrAuc": 0.7260524413447837
+    },
+    {
+      "params": {
+        "depth": 7,
+        "learningRate": 0.05,
+        "posWeight": 5
+      },
+      "trees": 84,
+      "validPrAuc": 0.7409779672698927
+    }
+  ],
+  "results": [
+    {
+      "model": "Gradient-boosted trees (FraudLens)",
+      "prAuc": 0.7661182780956493,
+      "prAucCi": [
+        0.6863489838766721,
+        0.8618493261928066
+      ],
+      "rocAuc": 0.9847067578415689,
+      "recallAt01Fpr": 0.7733333333333333,
+      "recallAt1Fpr": 0.8666666666666667,
+      "alerts": 52,
+      "precision": 0.9807692307692307,
+      "recall": 0.68,
+      "fraudAmountCaught": 0.4967396620116284,
+      "cost": 4149.83,
+      "savedVsNoModel": 3579.430000000003
+    },
+    {
+      "model": "Logistic regression",
+      "prAuc": 0.7963070611492449,
+      "prAucCi": [
+        0.6884776142648362,
+        0.8842933742717194
+      ],
+      "rocAuc": 0.9756593480642912,
+      "recallAt01Fpr": 0.8,
+      "recallAt1Fpr": 0.8533333333333334,
+      "alerts": 250,
+      "precision": 0.248,
+      "recall": 0.8266666666666667,
+      "fraudAmountCaught": 0.6917259867050659,
+      "cost": 3632.73,
+      "savedVsNoModel": 4096.5300000000025
+    },
+    {
+      "model": "Isolation forest (no labels)",
+      "prAuc": 0.029435491436289034,
+      "prAucCi": [
+        0.021500128264057537,
+        0.04182350296189987
+      ],
+      "rocAuc": 0.9439874370828719,
+      "recallAt01Fpr": 0,
+      "recallAt1Fpr": 0.36,
+      "alerts": 606,
+      "precision": 0.04455445544554455,
+      "recall": 0.36,
+      "fraudAmountCaught": 0.4592600067794328,
+      "cost": 7209.5199999999995,
+      "savedVsNoModel": 519.7400000000034
+    }
+  ],
+  "runtimeSeconds": 184.6
+}
