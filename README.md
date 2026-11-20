@@ -1,13 +1,14 @@
-# FraudLens · Real-time payment fraud detection
+# FraudLens · The case desk for card fraud
 
+![The FraudLens case desk: a flagged payment opened as a case file, its evidence laid out as exhibits, being stamped FRAUD](docs/screenshots/stamp.png)
 
-FraudLens scores every card payment in **under a millisecond**, explains **why** it flagged it, and gives analysts a live dashboard to review cases. It is built **end to end in TypeScript**:
+**[Live demo → fraudlens-casedesk.vercel.app](https://fraudlens-casedesk.vercel.app)**: opens straight onto live traffic, nothing to install or sign up for.
+
+FraudLens scores every card payment in **under a millisecond**, explains **why** it flagged it, and gives analysts a case desk to work the flags. It is built **end to end in TypeScript**:
 
 - the machine-learning models, written from scratch
 - a streaming Node.js API
-- a React dashboard
-
-![Triage](docs/screenshots/live.png)
+- a React case desk
 
 > Version 2 is a full rebuild. The original Python and Streamlit version is kept on the [`v1-python`](https://github.com/Vishwanathanirv/online-payment-fraud-detection/tree/v1-python) branch.
 
@@ -38,7 +39,19 @@ Each model is tested on the **last 14 days of a 90-day simulation**, which it ne
 
 Compromised merchants are hard to see from one card's behaviour alone. Adding merchant-level features is the next step (see the roadmap below).
 
-All data is synthetic, so these numbers describe the simulator, not a real bank. The simulator includes realistic look-alikes (holidays abroad, big one-off purchases, new phones) so the problem is not trivially separable.
+These numbers come from the simulator, not a real bank. The simulator includes realistic look-alikes (holidays abroad, big one-off purchases, new phones) so the problem is not trivially separable.
+
+### On real card data
+
+The same from-scratch models were also run on the public **ULB / Worldline credit-card fraud dataset** (284,807 real European card payments, 492 fraud, ODbL 1.0). The split is by time (60/20/20); hyperparameters, calibration and the alert threshold are chosen on validation only; the last 20% is used once, to report. Each alert costs €5 of review time and each missed fraud costs its amount. Reproduce with `npm run benchmark`; the full method is in [docs/benchmark.md](docs/benchmark.md).
+
+| Model (test: 56,962 payments, 75 fraud) | PR-AUC (95% CI) | ROC-AUC | Recall @ 0.1% FPR | Recall @ 1% FPR | Alerts | Saved vs no model |
+| --- | --- | --- | --- | --- | --- | --- |
+| Gradient-boosted trees | 0.766 (0.686–0.862) | 0.985 | 77.3% | 86.7% | 52 | €3,579 of €7,729 |
+| Logistic regression | 0.796 (0.688–0.884) | 0.976 | 80.0% | 85.3% | 250 | €4,097 of €7,729 |
+| Isolation forest (no labels) | 0.029 (0.022–0.042) | 0.944 | 0.0% | 36.0% | 606 | €520 of €7,729 |
+
+On this dataset the trees and logistic regression are statistically tied. The anonymised PCA features are close to linear, and there are no card or device IDs, so the behavioural features that give the trees their edge above cannot be built.
 
 ## Features
 
@@ -54,11 +67,11 @@ All data is synthetic, so these numbers describe the simulator, not a real bank.
 - **Rules plus model.** Auditable business rules (impossible travel, card testing, high value on a new device, late-night crypto) run alongside the model. The isolation forest acts as a safety net for unseen patterns.
 - **Honest drift monitoring.** Population Stability Index per feature. Time-of-day features always shift in a window of a few minutes, and card-history features shift when the live system has seen less history than training, so those are reported as expected shifts with the reason rather than as false alarms; real drift is listed first.
 - **A realistic test customer.** The "Try a payment" page scores against six weeks of ordinary Chennai spending on one phone, so the examples behave as they would for a real card: groceries are approved, a skimmed card in Lagos is held (38× usual spend, implied travel at hundreds of km/h), late-night crypto and gift-card cash-outs are declined.
-- **A triage app, built for speed.** Analysts work through flagged payments like a fast email client: the queue on the left, the case in the middle, the desk's live numbers on the right. **F** marks fraud, **L** a false alarm, **J/K** move, and the next case opens by itself. A command menu (**Ctrl K**) searches payments and runs every action, and a session panel tracks decisions, time per case and agreement with the simulator's answer key. Light and dark, and it works on a phone.
+- **A case desk, built for speed.** Every flagged payment is a case file in a drawer. The model's reasons are laid out as numbered exhibits, the TreeSHAP weights as a ledger, and the card's recent trail as a timeline. The analyst closes the case with a rubber stamp: **F** for fraud, **L** to clear it as a false alarm. The next file slides in through the View Transitions API. **J/K** move between files, and a command menu (**Ctrl K**) finds any payment or action. The desk ledger shows live numbers, a seismograph of traffic and your shift's stamps, scored against the simulator's answer key. It has paper-and-ink light and dark themes, a thumb bar on phones, full keyboard and screen-reader support, and it respects reduced motion.
 - **Live app:**
   - real-time stream over server-sent events, with live desk numbers and per-minute volume
-  - keyboard-first triage with analyst verdicts (fraud or false alarm) that feed the next training run
-  - a fraud-ring view with a live graph of cards, devices and merchants
+  - keyboard-first case desk with analyst verdicts (fraud or cleared) that feed the next training run
+  - a ring board: a live evidence board of cards, devices and merchants, with red string between cards that share a device
   - the feedback loop: train a challenger, compare it with the live model, promote it
   - model report: PR and ROC curves, confusion matrix, feature importance, model comparison
   - data-drift monitoring (Population Stability Index)
@@ -69,13 +82,17 @@ All data is synthetic, so these numbers describe the simulator, not a real bank.
   - multi-stage Docker image with a health check
   - CI that tests, builds and smoke-tests the container
 
-| Triage in light mode | Model report |
+| The desk at night | Ring board |
 | --- | --- |
-| ![Case detail](docs/screenshots/case-detail.png) | ![Model](docs/screenshots/model.png) |
+| ![The case desk in the dark theme](docs/screenshots/desk-dark.png) | ![Ring board](docs/screenshots/rings.png) |
 
-| Try it: single and batch scoring | Drift monitoring |
+| Lab report | Test bench: single and batch scoring |
 | --- | --- |
-| ![Try it](docs/screenshots/try-it.png) | ![Drift](docs/screenshots/drift.png) |
+| ![Lab report](docs/screenshots/model.png) | ![Test bench](docs/screenshots/try-it.png) |
+
+| Drift watch | On a phone |
+| --- | --- |
+| ![Drift watch](docs/screenshots/drift.png) | ![Case file on a phone](docs/screenshots/mobile.png) |
 
 ## Architecture
 
@@ -96,7 +113,7 @@ flowchart LR
     ENG --> DRIFT
   end
   ENG --> DB[(SQLite<br/>transactions · labels)]
-  ENG -- server-sent events --> UI[React dashboard]
+  ENG -- server-sent events --> UI[React case desk]
   UI -- REST --> API
   TRAIN[Training pipeline<br/>npm run train] -->|models/model.json| M
 ```
@@ -105,7 +122,7 @@ flowchart LR
 packages/core      ML library: simulator, features, GBDT, logistic regression, isolation forest,
                    metrics, calibration, drift, scorer, training pipeline (pure TypeScript)
 apps/api           Fastify server: scoring, batch scoring, stream, cases, stats, drift, rules
-apps/web           React + Vite + Tailwind dashboard
+apps/web           React + Vite + Tailwind case desk (the in-browser demo runs the engine in a Web Worker)
 scripts/train.ts   Simulates 90 days, trains, evaluates and writes models/model.json
 ```
 
@@ -120,7 +137,7 @@ npm install
 npm run build && npm start      # http://localhost:8080
 ```
 
-For development with hot reload, run `npm run dev`. It starts the API on port 8080 and the dashboard on 5173.
+For development with hot reload, run `npm run dev`. It starts the API on port 8080 and the case desk on 5173.
 
 A trained model is included. To retrain it (about 75 seconds):
 
@@ -159,8 +176,8 @@ curl -s localhost:8080/api/score -H 'content-type: application/json' \
 
 ```bash
 npm run lint && npm run typecheck
-npm test        # 40 tests: metrics, models, features, simulator, drift, explanations, training pipeline, API
-npm run test:e2e  # browser tests on the demo build: every view, keyboard triage, command menu, example payments, drift
+npm test        # 45 tests: metrics, models, features, simulator, drift, explanations, training pipeline, API
+npm run test:e2e  # browser tests on the demo build: every view, stamping cases by keyboard and on a phone, command menu, example payments, drift, benchmark
 ```
 
 The tests check behaviour, not just shapes. For example:
@@ -172,7 +189,9 @@ The tests check behaviour, not just shapes. For example:
 
 ## Deploy
 
-**Static demo on Vercel.** `npm run build:demo` builds the dashboard with the API compiled into the browser: the same simulator, feature store, models and rules run client-side, so each visitor gets a private sandbox and no server is needed. Import the repo on [Vercel](https://vercel.com/new) and it picks up `vercel.json`; no settings or environment variables are required.
+**Static demo on Vercel.** `npm run build:demo` builds the case desk with the API compiled into the browser. The same simulator, feature store, models and rules run client-side in a Web Worker, so the page stays responsive, each visitor gets a private sandbox, and no server is needed. `scripts/deploy-static.sh` uploads just the built files with `vercel.json`'s routing and cache headers. It needs `VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID`.
+
+Lighthouse on the production build: performance 100 on desktop and 86–93 on mobile (simulated slow 4G and a 4× slower CPU, across three runs); accessibility, best practices and SEO 100 on both.
 
 **Full server.** The repo includes a `Dockerfile` and a `render.yaml`. On [Render](https://render.com): click **New → Blueprint** and pick this repo. Any host that runs a Docker container works the same way. Mount a volume at `/data` to keep the database between restarts.
 
@@ -184,7 +203,7 @@ The tests check behaviour, not just shapes. For example:
 
 ## Tech stack
 
-TypeScript · Node.js 22 · Fastify · node:sqlite · Zod · React 19 · React Router · Vite · Tailwind CSS 4 · Vitest · esbuild · Docker · GitHub Actions
+TypeScript · Node.js 22 · Fastify · node:sqlite · Zod · React 19 · React Router · Vite · Tailwind CSS 4 · Web Workers · View Transitions · Vitest · Playwright · esbuild · Docker · GitHub Actions
 
 ## License
 

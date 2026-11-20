@@ -90,15 +90,13 @@ function Seismograph({ buckets: raw, minutes = 30 }: { buckets: Stats["buckets"]
 
 function Entry({ k, v, tone, sub }: { k: string; v: string; tone?: string; sub?: string }) {
   return (
-    <div className="py-1.5">
-      <div className="flex items-baseline gap-2 text-[13.5px]">
-        <dt className="shrink-0 text-muted">{k}</dt>
-        <span className="leader" aria-hidden />
-        <dd className="display text-[1.05rem] font-medium tabular-nums" style={{ color: tone }}>
-          {v}
-        </dd>
-      </div>
-      {sub && <div className="text-right text-[11px] text-faint">{sub}</div>}
+    <div className="grid grid-cols-[auto_1fr_auto] items-baseline gap-x-2 py-1.5 text-[13.5px]">
+      <dt className="text-muted">{k}</dt>
+      <dd className="leader" aria-hidden />
+      <dd className="display text-[1.05rem] font-medium tabular-nums" style={{ color: tone }}>
+        {v}
+      </dd>
+      {sub && <dd className="col-span-3 text-right text-[11px] text-faint">{sub}</dd>}
     </div>
   );
 }
@@ -450,13 +448,13 @@ export function Triage() {
         {selected && (
           <div className="glass flex flex-wrap items-center gap-2 border-t border-line-strong px-3 py-3 sm:px-8" role="toolbar" aria-label="Verdict">
             <button className="btn min-h-12 flex-1 justify-center border-bad font-mono uppercase tracking-[0.12em] text-bad hover:!bg-bad-soft sm:flex-none" disabled={busy} onClick={() => label("fraud")}>
-              Stamp fraud <span className="kbd">F</span>
+              <span className="sr-only sm:not-sr-only">Stamp</span> Fraud <span className="kbd hidden sm:inline-grid">F</span>
             </button>
             <button className="btn min-h-12 flex-1 justify-center border-ok font-mono uppercase tracking-[0.12em] text-ok hover:!bg-ok-soft sm:flex-none" disabled={busy} onClick={() => label("legit")}>
-              Clear <span className="kbd">L</span>
+              Clear <span className="kbd hidden sm:inline-grid">L</span>
             </button>
             <button className="btn min-h-12" onClick={() => move(1)} disabled={busy || index >= items.length - 1}>
-              Pass <span className="kbd">S</span>
+              Pass <span className="kbd hidden sm:inline-grid">S</span>
             </button>
             <span className="ml-auto hidden font-mono text-[11px] text-faint sm:inline">{index >= 0 ? `File ${index + 1} of ${items.length}` : "Not in this drawer"}</span>
             {error && (

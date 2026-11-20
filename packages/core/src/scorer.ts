@@ -98,7 +98,7 @@ export function reasonFor(feature: FeatureName, value: number, t: Transaction): 
     case "category_risk":
       // The model can learn that a normally safe category is being hit (a compromised grocery
       // chain, say), so only call the category high-risk when it is.
-      return value >= 0.4 ? `High-risk category (${t.category.replace("_", " ")})` : `${t.category.replace("_", " ")} payments are being hit by fraud`;
+      return value >= 0.4 ? `High-risk category (${t.category.replace("_", " ")})` : `${t.category.charAt(0).toUpperCase()}${t.category.slice(1).replace("_", " ")} payments are being hit by fraud`;
     case "device_other_cards_24h":
       return `This device paid with ${value} other card${value === 1 ? "" : "s"} in the last 24 hours`;
     case "mins_since_last_log": {

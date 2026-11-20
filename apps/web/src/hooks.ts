@@ -19,13 +19,13 @@ export function useLiveFeed(max = 60) {
     api<{ transactions: Tx[] }>(`/api/transactions?limit=${max}`).then((r) => !cancelled && setItems(r.transactions)).catch(() => {});
     if (DEMO) {
       let unsub = () => {};
-      import("./demo/server").then(({ demo }) => {
+      import("./demo/client").then(({ demo }) => {
         if (cancelled) return;
         void demo.handle("GET", "/api/health", undefined).then(() => !cancelled && setConnected(true));
         unsub = demo.subscribe((tx) => {
           markFresh(tx);
           setItems((prev) => [tx, ...prev.filter((p) => p.id !== tx.id)].slice(0, max));
-        }) as unknown as () => void;
+        });
       });
       return () => {
         cancelled = true;

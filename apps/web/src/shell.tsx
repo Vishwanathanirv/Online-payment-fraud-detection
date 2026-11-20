@@ -266,7 +266,7 @@ export function Shell({ children }: { children: ReactNode }) {
             })}
           </nav>
           <div className="mb-2 ml-auto flex items-center gap-2">
-            <button onClick={() => setPalette(true)} className="flex h-10 items-center gap-2 rounded-[6px] border border-line-strong bg-panel px-3 text-sm text-muted hover:border-ink sm:w-48" aria-label="Search or run a command">
+            <button onClick={() => setPalette(true)} className="flex h-10 items-center gap-2 rounded-[6px] border border-line-strong bg-panel px-3 text-sm text-muted hover:border-ink sm:w-48" aria-label="Find a case, Ctrl K">
               <svg viewBox="0 0 16 16" className="h-4 w-4" aria-hidden>
                 <circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" strokeWidth={1.5} />
                 <path d="m10.5 10.5 3 3" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />

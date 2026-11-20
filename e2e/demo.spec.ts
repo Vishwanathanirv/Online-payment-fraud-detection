@@ -48,7 +48,7 @@ test("case desk works on a phone: drawer, file, stamp", async ({ browser }) => {
   const queue = page.getByRole("region", { name: "Queue" });
   await queue.locator("li button").first().tap({ timeout: 30_000 });
   await expect(page.getByRole("article")).toBeVisible();
-  await page.getByRole("button", { name: /Stamp fraud/ }).tap();
+  await page.getByRole("button", { name: /Stamp fraud/i }).tap();
   await expect(page.getByText("1 closed this shift")).toBeAttached();
   // Nothing on the page scrolls sideways.
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

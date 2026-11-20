@@ -12,3 +12,4 @@ models/report.json
 apps/web/public/model.json
 test-results/
 playwright-report/
+.vercel

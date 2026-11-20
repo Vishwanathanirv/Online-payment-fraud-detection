@@ -2,13 +2,51 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="FraudLens: real-time payment fraud detection dashboard with explainable machine learning." />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>FraudLens · The case desk for card fraud</title>
+    <meta name="description" content="Live card payments scored in under a millisecond by gradient-boosted trees written from scratch, each flag explained with exact TreeSHAP. Work the cases like an investigator: F for fraud, L to clear." />
+    <meta name="theme-color" content="#efebe1" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0d0f13" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <title>FraudLens · Real-time fraud detection</title>
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="canonical" href="https://fraudlens-casedesk.vercel.app/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="FraudLens" />
+    <meta property="og:title" content="FraudLens · The case desk for card fraud" />
+    <meta property="og:description" content="Real-time payment fraud detection with explainable, from-scratch ML. Open the desk and stamp your first case in seconds." />
+    <meta property="og:url" content="https://fraudlens-casedesk.vercel.app/" />
+    <meta property="og:image" content="https://fraudlens-casedesk.vercel.app/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="A FraudLens case file with its evidence, stamped FRAUD" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="FraudLens · The case desk for card fraud" />
+    <meta name="twitter:description" content="Real-time payment fraud detection with explainable, from-scratch ML." />
+    <meta name="twitter:image" content="https://fraudlens-casedesk.vercel.app/og.png" />
   </head>
   <body>
-    <div id="root"></div>
+    <noscript>FraudLens is a live fraud-detection demo and needs JavaScript to run.</noscript>
+    <div id="root">
+      <!-- First paint before the app loads; React replaces it. -->
+      <style>
+        .boot{min-height:100dvh;display:flex;flex-direction:column;background:#efebe1;color:#1b1912;font-family:system-ui,sans-serif}
+        .boot header{display:flex;align-items:center;gap:.5rem;padding:.9rem 1.25rem;border-bottom:1px solid #c3b9a3}
+        .boot b{font:italic 600 1.2rem Georgia,serif}
+        .boot main{margin:auto 0;max-width:48rem;width:100%;box-sizing:border-box;padding:2rem 1.25rem}
+        .boot p{margin:0}
+        .boot .k{font:600 11px ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;color:#595244}
+        .boot h1{font:400 clamp(2.4rem,9vw,3.6rem)/1.08 Georgia,serif;letter-spacing:-.02em;margin:.6rem 0 0}
+        @media (prefers-color-scheme:dark){.boot{background:#0d0f13;color:#eee9dc}.boot header{border-color:#3b404b}.boot .k{color:#b0a998}}
+      </style>
+      <div class="boot">
+        <header><img src="/favicon.svg" alt="" width="28" height="28" /><b>FraudLens</b></header>
+        <main>
+          <p class="k">Opening the case desk</p>
+          <h1>Every card payment scored in under a millisecond, and every flag explained.</h1>
+        </main>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
