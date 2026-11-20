@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router";
 import "@fontsource-variable/mona-sans/wdth.css";
 import "@fontsource-variable/geist-mono";
+import "@fontsource-variable/fraunces/opsz.css";
 import "./index.css";
 import { Page, Shell } from "./shell";
 import { DriftPage } from "./pages/Drift";

@@ -21,7 +21,7 @@ The data is not stored in this repository; the script downloads it.
 
 ## Protocol
 
-- **Split by time, never at random.** Payments are sorted by `Time`. The first 60% (hours 0–33.3) are used for training, the next 20% (to hour 40.5) for validation, and the last 20% (hours 40.5–48) for testing. Payments that share a timestamp always land in the same split.
+- **Split by time, never at random.** Payments are sorted by `Time`. The first 60% (hours 0–33.4) are used for training, the next 20% (to hour 40.3) for validation, and the last 20% (hours 40.3–48) for testing. Payments that share a timestamp always land in the same split.
 - **Everything that is tuned is tuned on validation:** the hyperparameter grid (picked by validation PR-AUC), early stopping, Platt calibration and the alert threshold. The test window is used only once, to report.
 - **Inputs:** V1–V28, log amount and hour of day. Raw `Time` is left out because it only counts seconds since the capture began.
 - **Cost model:** a missed fraud costs its amount, and each alert costs €5 of analyst time. The alert threshold minimises that cost on validation. "Saved" is the cost with no model (every fraud missed, €7,729) minus the cost with it.

@@ -3,32 +3,55 @@ import { expect, test } from "@playwright/test";
 test("every view opens without errors", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  for (const [path, heading] of [["/", "Triage"], ["/rings", "Fraud rings"], ["/model", "Model performance"], ["/drift", "Data drift"], ["/try", "Try a payment"]]) {
+  for (const [path, heading] of [["/", "Case desk"], ["/rings", "Fraud rings"], ["/model", "Model performance"], ["/drift", "Data drift"], ["/try", "Try a payment"]]) {
     await page.goto(path);
     await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
   }
   expect(errors).toEqual([]);
 });
 
-test("triage: judge payments with the keyboard and the queue moves on", async ({ page }) => {
+test("case desk: stamp cases with the keyboard and the next file opens", async ({ page }) => {
   await page.goto("/");
+  // First visit: a briefing explains the desk; it goes away for good once dismissed.
+  await expect(page.getByRole("complementary", { name: "Briefing" })).toBeVisible();
+  await page.getByRole("button", { name: "Start the shift" }).click();
+  await expect(page.getByRole("complementary", { name: "Briefing" })).toHaveCount(0);
   await expect(page.getByText("Live", { exact: true })).toBeVisible({ timeout: 30_000 });
   const queue = page.getByRole("region", { name: "Queue" });
   await expect(queue.locator("li button").first()).toBeVisible({ timeout: 30_000 });
   const first = await page.getByRole("article").getAttribute("aria-label");
-  await expect(page.getByText("Model explanation")).toBeVisible();
+  await expect(page.getByText("Weight of evidence")).toBeVisible();
   await page.keyboard.press("f");
+  // The stamp lands on the file, then the next one opens.
+  await expect(page.getByRole("status").filter({ hasText: "Fraud" })).toBeVisible();
   await expect(page.getByRole("article")).not.toHaveAttribute("aria-label", first!);
-  await expect(page.getByText("1 decided this session")).toBeVisible();
+  await expect(page.getByText("1 closed this shift")).toBeVisible();
   await page.keyboard.press("l");
-  await expect(page.getByText("2 decided this session")).toBeVisible();
+  await expect(page.getByText("2 closed this shift")).toBeVisible();
+  await expect(page.getByRole("list", { name: "Your verdicts, oldest first" }).locator("li")).toHaveCount(2);
   await page.keyboard.press("j");
   await page.keyboard.press("k");
+  await page.reload();
+  await expect(page.getByRole("complementary", { name: "Briefing" })).toHaveCount(0);
+});
+
+test("case desk works on a phone: drawer, file, stamp", async ({ browser }) => {
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Start the shift" }).click();
+  const queue = page.getByRole("region", { name: "Queue" });
+  await queue.locator("li button").first().tap({ timeout: 30_000 });
+  await expect(page.getByRole("article")).toBeVisible();
+  await page.getByRole("button", { name: /Stamp fraud/ }).tap();
+  await expect(page.getByText("1 closed this shift")).toBeAttached();
+  // Nothing on the page scrolls sideways.
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.close();
 });
 
 test("the command menu switches views and runs actions", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1, name: "Triage" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Case desk" })).toBeVisible();
   await page.keyboard.press("Control+k");
   await page.getByPlaceholder(/Search payments by card or ID/).fill("drift");
   await page.keyboard.press("Enter");
