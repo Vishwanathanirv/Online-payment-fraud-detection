@@ -159,7 +159,7 @@ export async function buildApp(opts: AppOptions = {}): Promise<{ app: FastifyIns
     return { transaction: tx, cardHistory: store.list({ cardId: tx.cardId, limit: 12 }) };
   });
 
-  app.post("/api/transactions/:id/label", async (req, reply) => {
+  app.post("/api/transactions/:id/label", { config: { rateLimit: { max: 60, timeWindow: "1 minute" } } }, async (req, reply) => {
     const { id } = req.params as { id: string };
     const { label } = z.object({ label: z.enum(["fraud", "legit"]) }).parse(req.body);
     const tx = store.label(id, label);
