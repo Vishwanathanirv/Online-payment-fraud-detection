@@ -514,8 +514,16 @@ function App() {
     setRetune(true);
   };
 
-  if (error) return <p className="mx-auto max-w-xl px-6 py-32 text-ash">{error}</p>;
-  if (!d || !sum || !o || !th) return <p className="eyebrow mx-auto max-w-[72rem] px-6 py-40 sm:px-10">Loading…</p>;
+  if (error)
+    return (
+      <div role="alert" className="mx-auto max-w-xl px-6 py-32">
+        <p className="text-ash">{error}</p>
+        <button type="button" className="mt-6 border-b border-rule text-bone hover:border-bone" onClick={() => location.reload()}>
+          Reload
+        </button>
+      </div>
+    );
+  if (!d || !sum || !o || !th) return <Skeleton />;
 
   const saved = o.baseline - o.cost.total;
   const span = sum.spanHours >= 48 ? `${(sum.spanHours / 24).toFixed(1)} days` : `${sum.spanHours.toFixed(1)} hours`;
@@ -730,3 +738,30 @@ createRoot(document.getElementById("root")!).render(
     <App />
   </StrictMode>,
 );
+
+/** The page's own outline while the data loads: header, headline figures, the payments plot. */
+function Skeleton() {
+  const bar = "animate-pulse rounded-sm bg-rule-soft";
+  return (
+    <div aria-busy="true" aria-label="Loading">
+      <div className="border-b border-rule-soft">
+        <div className="mx-auto flex max-w-[72rem] items-center gap-8 px-6 py-4 sm:px-10">
+          <div className={bar + " h-6 w-28"} />
+          <div className={bar + " h-4 w-56"} />
+        </div>
+      </div>
+      <div className="mx-auto max-w-[72rem] px-6 pt-20 sm:px-10">
+        <div className={bar + " h-10 w-3/4 max-w-xl"} />
+        <div className="mt-12 grid grid-cols-2 gap-8 sm:grid-cols-5">
+          {Array.from({ length: 5 }, (_, i) => (
+            <div key={i}>
+              <div className={bar + " h-3 w-20"} />
+              <div className={bar + " mt-3 h-8 w-24"} />
+            </div>
+          ))}
+        </div>
+        <div className={bar + " mt-14 h-72 w-full"} />
+      </div>
+    </div>
+  );
+}
