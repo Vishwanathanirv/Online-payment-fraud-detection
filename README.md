@@ -61,7 +61,7 @@ Settings (team, costs, currency, rules, programme thresholds) are kept in the pa
 | --- | --- |
 | Dataset | Credit Card Fraud Detection, ULB Machine Learning Group and Worldline |
 | Contents | 284,807 card payments, September 2013, 492 fraud. Fields published as anonymous components V1–V28, plus time and amount |
-| Licence | Open Database License (ODbL) 1.0 |
+| Licence | ODbL 1.0 (database), DbCL 1.0 (contents) |
 | Shown | The last 20% by time: 56,962 payments, 75 fraud, €7,729. No model saw them while learning |
 
 | Model | PR-AUC (95% interval) |
@@ -99,4 +99,4 @@ Engine tests include a brute-force check that the threshold optimiser finds the 
 
 ## Licence
 
-Code: MIT. Payment data: © ULB Machine Learning Group and Worldline, ODbL 1.0; `apps/web/public/replay.json` is a derived database offered under the same licence. Exchange rates: European Central Bank.
+Code: MIT. Payment data: © ULB Machine Learning Group and Worldline, ODbL 1.0 with DbCL 1.0 contents ([source](https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud)); `apps/web/public/replay.json` is a derived database offered under the same licence. Exchange rates: European Central Bank.

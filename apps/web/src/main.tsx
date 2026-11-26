@@ -718,7 +718,7 @@ function App() {
             </div>
           </Section>
 
-          <footer className="border-t border-rule py-12 text-[13px] text-smoke">Payment data © ULB Machine Learning Group and Worldline, {bench.dataset.licence}; derived data here under the same licence. Rates: European Central Bank. Code: MIT.</footer>
+          <footer className="border-t border-rule py-12 text-[13px] text-smoke">Payment data © ULB Machine Learning Group and Worldline (<a className="underline underline-offset-4 hover:text-ash" href="https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud" rel="noreferrer">source</a>), {bench.dataset.licence}; derived data here under the same licence. Rates: European Central Bank. Code: MIT.</footer>
         </main>
       </div>
     </MoneyCtx.Provider>
