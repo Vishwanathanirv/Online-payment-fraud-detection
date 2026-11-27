@@ -214,6 +214,7 @@ async function main() {
     dataset: {
       name: "Credit Card Fraud Detection (ULB Machine Learning Group and Worldline)",
       licence: "Open Database License (ODbL) 1.0, contents under the Database Contents License (DbCL) 1.0",
+      home: "https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud",
       source: URL,
       sha256: SHA256,
       rows: X.length,

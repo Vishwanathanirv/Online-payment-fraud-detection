@@ -99,4 +99,4 @@ Engine tests include a brute-force check that the threshold optimiser finds the 
 
 ## Licence
 
-Code: MIT. Payment data: © ULB Machine Learning Group and Worldline, ODbL 1.0 with DbCL 1.0 contents ([source](https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud)); `apps/web/public/replay.json` is a derived database offered under the same licence. Exchange rates: European Central Bank.
+Code: MIT. Payment data: © ULB Machine Learning Group and Worldline, ODbL 1.0 with DbCL 1.0 contents ([publisher](https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud), [file used](https://storage.googleapis.com/download.tensorflow.org/data/creditcard.csv)); `apps/web/public/replay.json` is a derived database offered under the same licence. Exchange rates: European Central Bank.

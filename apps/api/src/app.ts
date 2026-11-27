@@ -44,13 +44,20 @@ const toTransaction = (b: TxIn): Transaction => {
 
 export type AppOptions = { bundle?: ModelBundle; dbFile?: string; simulator?: boolean; warmDays?: number; customers?: number; adminToken?: string; logger?: boolean };
 
+/** Proxy hops whose X-Forwarded-For is believed, so a client can't pick its own rate-limit key. */
+function trustedHops(): number {
+  const n = Number(process.env.TRUST_PROXY ?? 1);
+  return Number.isInteger(n) && n >= 0 ? n : 1;
+}
+
 export async function buildApp(opts: AppOptions = {}): Promise<{ app: FastifyInstance; engine: Engine }> {
   const bundle = opts.bundle ?? loadBundle();
   const store = new Store(opts.dbFile);
   const engine = new Engine(bundle, store, { warmDays: opts.warmDays, customers: opts.customers, state: { running: opts.simulator ?? true } });
   const adminToken = opts.adminToken ?? process.env.ADMIN_TOKEN;
 
-  const app = Fastify({ logger: opts.logger ?? false, bodyLimit: 2 * 1024 * 1024, trustProxy: true });
+  const hops = trustedHops();
+  const app = Fastify({ logger: opts.logger ?? false, bodyLimit: 2 * 1024 * 1024, trustProxy: (_addr: string, hop: number) => hop < hops });
   await app.register(helmet, {
     contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], styleSrc: ["'self'", "'unsafe-inline'"], imgSrc: ["'self'", "data:"], connectSrc: ["'self'"] } },
   });
@@ -160,7 +167,8 @@ export async function buildApp(opts: AppOptions = {}): Promise<{ app: FastifyIns
   });
 
   app.post("/api/transactions/:id/label", { config: { rateLimit: { max: 60, timeWindow: "1 minute" } } }, async (req, reply) => {
-    const { id } = req.params as { id: string };
+    requireAdmin(req.headers.authorization);
+    const { id } = z.object({ id: z.string().min(1).max(64) }).parse(req.params);
     const { label } = z.object({ label: z.enum(["fraud", "legit"]) }).parse(req.body);
     const tx = store.label(id, label);
     if (!tx) return reply.status(404).send({ error: "Not found" });
