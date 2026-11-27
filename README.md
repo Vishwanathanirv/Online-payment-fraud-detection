@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/kon.svg" width="100%" alt="FraudLens: Fraud decisions, with the costs. A plush lion in a black robe, headphones and sunglasses.">
+</p>
+
 # FraudLens
 
 A fraud-operations workbench that runs in your browser. Drop in a CSV of scored, labelled transactions and get the decisions fraud teams usually work out in spreadsheets: where to set the lines, how many analysts you need, where the fraud is, and what every choice costs.
