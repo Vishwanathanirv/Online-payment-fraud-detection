@@ -54,8 +54,10 @@ describe("API", () => {
     const list = (await app.inject("/api/transactions?limit=10")).json().transactions;
     expect(list).toHaveLength(10);
     const id = list[0].id;
-    const labeled = await app.inject({ method: "POST", url: `/api/transactions/${id}/label`, payload: { label: "fraud" } });
+    expect((await app.inject({ method: "POST", url: `/api/transactions/${id}/label`, payload: { label: "fraud" } })).statusCode).toBe(401);
+    const labeled = await app.inject({ method: "POST", url: `/api/transactions/${id}/label`, payload: { label: "fraud" }, headers: { authorization: "Bearer secret" } });
     expect(labeled.json().transaction.label).toBe("fraud");
+    expect((await app.inject({ method: "POST", url: `/api/transactions/${"x".repeat(65)}/label`, payload: { label: "fraud" }, headers: { authorization: "Bearer secret" } })).statusCode).toBe(400);
     const detail = (await app.inject(`/api/transactions/${id}`)).json();
     expect(detail.cardHistory.length).toBeGreaterThan(0);
     expect((await app.inject("/api/transactions/nope")).statusCode).toBe(404);

@@ -14,7 +14,7 @@ import { DEFAULT_LIMITS, type Limits } from "./engine/monitor";
 import { compiles, forceOf, scoreField, type Rule } from "./engine/rules";
 import { decisionRecord } from "./engine/record";
 import { CalibrationModule, CompareModule, DriftModule, MaturityModule, MonitorModule, RulesModule } from "./operations";
-import { currencyList, loadRates, moneyFormat, niceStep, rateBetween, type Rates } from "./engine/money";
+import { canShow, currencyList, loadRates, moneyFormat, niceStep, rateBetween, type Rates } from "./engine/money";
 import { cheapest, DEFAULT_COSTS, DEFAULT_STAFFING, evaluate, type Costs, type Outcome, type Staffing, type Thresholds } from "./engine/policy";
 import { dimensions, segment, type Dimension } from "./engine/segments";
 import { Import } from "./import";
@@ -47,7 +47,8 @@ function readHash(): Partial<Settings> {
   if (n("a") !== undefined || n("min") !== undefined || n("to") !== undefined || p.get("o"))
     out.staffing = { analysts: n("a") ?? DEFAULT_STAFFING.analysts, minutesPerReview: n("min") ?? DEFAULT_STAFFING.minutesPerReview, timeoutMinutes: n("to") ?? DEFAULT_STAFFING.timeoutMinutes, order: p.get("o") === "oldest" ? "oldest" : "risk" };
   if (n("fm") !== undefined || n("rc") !== undefined || n("dc") !== undefined) out.costs = { fraudMultiple: n("fm") ?? DEFAULT_COSTS.fraudMultiple, reviewCost: n("rc") ?? DEFAULT_COSTS.reviewCost, declineShare: (n("dc") ?? DEFAULT_COSTS.declineShare * 100) / 100 };
-  if (p.get("cur")) out.view = p.get("cur")!;
+  const cur = p.get("cur")?.toUpperCase();
+  if (cur && /^[A-Z]{3}$/.test(cur)) out.view = cur;
   const rules = decodeRules(p.get("r"));
   if (rules) out.rules = rules;
   if (LIMIT_KEYS.some(([, k]) => n(k) !== undefined)) out.limits = Object.fromEntries(LIMIT_KEYS.map(([f, k]) => [f, n(k) === undefined ? DEFAULT_LIMITS[f] : f.endsWith("Ratio") ? n(k)! / 100 : n(k)!])) as Limits;
@@ -489,8 +490,10 @@ function App() {
   }, [d, th, model, costs, retune]);
   useEffect(() => writeHash({ costs, staffing, view, rules: ruleState ?? [], limits, mature }), [costs, staffing, view, ruleState, limits, mature]);
 
-  const k = d ? rateBetween(rates, d.currency, view) : 1;
-  const money = useMemo<Money>(() => ({ view, k, fmt: moneyFormat(view) }), [view, k]);
+  // A currency we can't convert to (no rates loaded, or an unknown code in a link) shows the original.
+  const shown = d && !canShow(rates, view, d.currency) ? d.currency : view;
+  const k = d ? rateBetween(rates, d.currency, shown) : 1;
+  const money = useMemo<Money>(() => ({ view: shown, k, fmt: moneyFormat(shown) }), [shown, k]);
   const sum = useMemo(() => (d ? totals(d) : null), [d]);
   const o = useMemo(() => (d && th ? evaluate(d, model, th, costs, staffing, force) : null), [d, th, model, costs, staffing, force]);
   const requests = useRequestsSince(own?.at ?? null);
@@ -562,7 +565,7 @@ function App() {
             )}
             <label>
               Currency{" "}
-              <select className="inline-select text-bone" value={view} onChange={(e) => setView(e.target.value)} aria-label="Currency">
+              <select className="inline-select text-bone" value={shown} onChange={(e) => setView(e.target.value)} aria-label="Currency">
                 {currencyList(rates, d.currency).map((c) => (
                   <option key={c}>{c}</option>
                 ))}
@@ -592,7 +595,7 @@ function App() {
               Stops <Amount v={o.fraud.stoppedAmt} className="text-stopped" serif /> of <Amount v={sum.fraudAmt} serif /> fraud. Saves <Amount v={saved} serif /> against no screening.
             </h1>
             {own?.note && <p className="mt-4 text-[14px] text-smoke">{own.note}</p>}
-            {view !== d.currency && rates && (
+            {shown !== d.currency && rates && (
               <p className="mt-4 text-[14px] text-smoke">
                 Converted from {d.currency} at the ECB rate of {rates.date}.
               </p>
@@ -726,7 +729,7 @@ function App() {
             </div>
           </Section>
 
-          <footer className="border-t border-rule py-12 text-[13px] text-smoke">Payment data © ULB Machine Learning Group and Worldline (<a className="underline underline-offset-4 hover:text-ash" href="https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud" rel="noreferrer">source</a>), {bench.dataset.licence}; derived data here under the same licence. Rates: European Central Bank. Code: MIT.</footer>
+          <footer className="border-t border-rule py-12 text-[13px] text-smoke">Payment data © ULB Machine Learning Group and Worldline (<a className="underline underline-offset-4 hover:text-ash" href={bench.dataset.home} rel="noreferrer">publisher</a>, <a className="underline underline-offset-4 hover:text-ash" href={bench.dataset.source} rel="noreferrer">file used</a>), {bench.dataset.licence}; derived data here under the same licence. Rates: European Central Bank. Code: MIT.</footer>
         </main>
       </div>
     </MoneyCtx.Provider>
@@ -743,7 +746,8 @@ createRoot(document.getElementById("root")!).render(
 function Skeleton() {
   const bar = "animate-pulse rounded-sm bg-rule-soft";
   return (
-    <div aria-busy="true" aria-label="Loading">
+    <div role="status" aria-busy="true">
+      <span className="sr-only">Loading</span>
       <div className="border-b border-rule-soft">
         <div className="mx-auto flex max-w-[72rem] items-center gap-8 px-6 py-4 sm:px-10">
           <div className={bar + " h-6 w-28"} />
